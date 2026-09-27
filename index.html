@@ -1,0 +1,1352 @@
+<title>Свеча в Вавилоне</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alice&family=Pixelify+Sans:wght@400;600&display=swap">
+<style>
+:root{
+  color-scheme: dark;
+  --void:#11151f;
+  --slate:#1d2433;
+  --slate-2:#2a3346;
+  --rain:#8ea3bf;
+  --mist:#cdd6e2;
+  --rose:#d6adb8;
+  --hot:#ff9fb3;
+  --moss:#a3b8a6;
+  --wax:#f1e1c2;
+  --flame:#ffc877;
+  --ribbon:#e8d27a;
+  --paper:#d9d4cc;
+  --paper-2:#cfc8bf;
+  --paper-edge:#aaa197;
+  --ink:#353d57;
+  --ink-soft:#6b7189;
+  --sepia:#7a4a2e;
+  --bad:#b0707e;
+  --ui:"Pixelify Sans", ui-monospace, "Courier New", monospace;
+  --book:"Alice", "PT Serif", Georgia, serif;
+}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--void);color:var(--mist);font-family:var(--ui);-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+body{touch-action:manipulation;-webkit-user-select:none;user-select:none}
+canvas#game{position:fixed;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges}
+button{font-family:var(--ui);font-size:15px;cursor:pointer;color:inherit}
+button:focus-visible{outline:2px solid var(--flame);outline-offset:2px}
+
+/* ---------- HUD ---------- */
+.hud{position:fixed;left:0;right:0;top:0;z-index:5;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;
+  padding:calc(env(safe-area-inset-top,0px) + 12px) max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));pointer-events:none}
+.meter{display:flex;gap:12px;align-items:flex-end}
+.cndl{position:relative;width:14px;height:52px;border:2px solid var(--wax);box-shadow:2px 2px 0 #0008;background:#0006;flex:none}
+.cndl .fill{position:absolute;left:0;right:0;bottom:0;background:var(--wax);height:100%}
+.cndl .fl{position:absolute;left:50%;top:-14px;width:6px;height:9px;margin-left:-3px;background:var(--flame);box-shadow:0 0 10px 3px #ffc87766;animation:fl .16s steps(2) infinite alternate}
+.cndl.low .fl{animation-duration:.08s}
+.cndl.out .fl{opacity:0}
+@keyframes fl{to{transform:scaleY(.7) translateY(2px)}}
+.meta{display:flex;flex-direction:column;gap:3px;text-shadow:1px 1px 0 #000}
+.meta .lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--rain)}
+.meta .val{font-size:16px;color:var(--mist);font-variant-numeric:tabular-nums;white-space:nowrap}
+.meta .st{font-size:13px;color:var(--rose);min-height:16px;white-space:nowrap}
+.inv{display:flex;gap:10px;font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.inv span b{color:var(--wax);font-weight:600}
+.right{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.frag{font-size:17px;text-shadow:1px 1px 0 #000;font-variant-numeric:tabular-nums;white-space:nowrap}
+.frag b{color:var(--flame);font-weight:600}
+.hbtns{display:flex;gap:6px;pointer-events:auto}
+.px{background:var(--slate);border:2px solid var(--slate-2);box-shadow:2px 2px 0 #000a;padding:6px 10px;color:var(--mist)}
+.px:hover{border-color:var(--rain)}
+.px:active{transform:translate(2px,2px);box-shadow:none}
+.guide{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 12px);transform:translateX(-50%);z-index:5;pointer-events:none;
+  display:flex;align-items:center;gap:8px;font-size:14px;color:var(--wax);text-shadow:1px 1px 0 #000;white-space:nowrap;transition:opacity .6s}
+.arrow{width:26px;height:26px;display:grid;place-items:center;background:#11151fb0;border:2px solid var(--flame);color:var(--flame);font-size:16px;line-height:1}
+.arrow i{display:block;font-style:normal;transition:transform .15s}
+.alert{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 50px);transform:translateX(-50%);z-index:5;pointer-events:none;
+  font-size:15px;letter-spacing:.04em;color:var(--rose);text-shadow:1px 1px 0 #000;white-space:nowrap;transition:opacity .3s}
+.alert.hot{color:var(--hot);animation:pulse .5s steps(2) infinite alternate}
+@keyframes pulse{to{opacity:.55}}
+.prompt{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 28px);transform:translateX(-50%);z-index:6;
+  display:flex;align-items:center;gap:10px;padding:8px 14px 8px 8px;background:#11151fd9;border:2px solid var(--slate-2);box-shadow:3px 3px 0 #000a;font-size:15px;pointer-events:auto;cursor:pointer;white-space:nowrap}
+.prompt.story{border-color:var(--flame);color:var(--wax)}
+.prompt.hide{border-color:var(--moss);color:var(--moss)}
+.key{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 4px;background:var(--mist);color:var(--void);font-weight:600;box-shadow:0 3px 0 var(--rain)}
+.toast{position:fixed;left:50%;top:20%;transform:translateX(-50%);z-index:7;width:min(600px,calc(100vw - 32px));text-align:center;
+  font-family:var(--book);font-size:20px;line-height:1.45;color:var(--wax);text-shadow:0 0 12px #000,1px 1px 0 #000;pointer-events:none;transition:opacity .8s}
+.gust{position:fixed;left:16px;right:16px;top:40%;z-index:4;pointer-events:none;text-align:center;font-size:17px;letter-spacing:.2em;color:var(--rain);text-shadow:1px 1px 0 #000;opacity:0;transition:opacity .3s}
+
+/* monster tags */
+.tags{position:fixed;inset:0;pointer-events:none;z-index:3;overflow:hidden}
+.mtag{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;color:var(--mist);text-shadow:1px 1px 0 #000;white-space:nowrap}
+.mtag .row{display:flex;gap:5px;align-items:center;background:#11151fc0;border:2px solid var(--slate-2);padding:1px 6px}
+.mtag .ic{font-size:13px;color:var(--rain)}
+.mtag.on .row{border-color:var(--rose)}
+.mtag.on .ic{color:var(--hot)}
+.mtag .bar{display:block;width:44px;height:5px;background:#0009;border:1px solid #000}
+.mtag .bar b{display:block;height:100%;width:0;background:var(--flame)}
+.mtag.brave .bar b{background:var(--hot)}
+
+/* ---------- overlays ---------- */
+.overlay{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:calc(env(safe-area-inset-top,0px) + 16px) 16px calc(env(safe-area-inset-bottom,0px) + 16px);background:#0b0e16c4;overflow:auto;touch-action:pan-y}
+.title{background:linear-gradient(180deg,#0b0e16e6 0%,#0b0e1688 45%,#0b0e16ee 100%)}
+.title-card{max-width:620px;display:flex;flex-direction:column;gap:18px}
+.kicker{margin:0;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--rain)}
+.title h1{margin:0;font-family:var(--ui);font-weight:600;font-size:clamp(46px,10vw,84px);line-height:.92;color:var(--wax);text-shadow:4px 4px 0 #000,0 0 40px #ffc87733;text-wrap:balance}
+.title h1 span{color:var(--rose)}
+.lede{margin:0;font-family:var(--book);font-size:18px;line-height:1.6;color:var(--mist);max-width:62ch}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+.primary{background:var(--flame);color:var(--void);border:0;padding:12px 18px;font-size:17px;font-weight:600;box-shadow:4px 4px 0 #000}
+.primary:active{transform:translate(3px,3px);box-shadow:1px 1px 0 #000}
+.ghost{background:transparent;border:2px solid var(--slate-2);padding:10px 14px;color:var(--mist)}
+.ghost:hover{border-color:var(--rain)}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:4px 0 0;font-size:14px;color:var(--rain)}
+.keys dt{color:var(--mist)}
+.keys dd{margin:0}
+.only-touch{display:none}
+body.touch .only-touch{display:grid}
+body.touch .only-keys{display:none}
+
+.spread{width:min(1000px,100%);display:grid;grid-template-columns:minmax(220px,1fr) 2fr;background:var(--paper);color:var(--ink);box-shadow:8px 8px 0 #000,0 0 0 2px var(--paper-edge);
+  max-height:100%;overflow:auto;position:relative}
+.spread::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 180px 120px at 88% 12%,#8ea3bf22,transparent 70%),radial-gradient(ellipse 140px 90px at 12% 92%,#8ea3bf1c,transparent 70%)}
+.leaf{padding:26px 24px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.leaf-l{border-right:2px dashed var(--paper-edge);font-family:var(--book)}
+.leaf-l .kicker{color:var(--ink-soft)}
+.leaf h2{margin:0;font-family:var(--ui);font-weight:600;font-size:26px;line-height:1.05;color:var(--ink);text-wrap:balance}
+.leaf p{margin:0;font-size:16px;line-height:1.55}
+.wlist{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;font-family:var(--ui);font-size:17px;letter-spacing:.12em}
+.wlist li{display:flex;gap:10px;align-items:center}
+.wlist li::before{content:"";width:10px;height:10px;border:2px solid var(--ink-soft);flex:none}
+.wlist li.ok{color:var(--ink-soft);text-decoration:line-through}
+.wlist li.ok::before{background:var(--moss);border-color:var(--moss)}
+.cost{font-size:13px!important;color:var(--ink-soft)}
+.leaf .ghost{border-color:var(--paper-edge);color:var(--ink);align-self:flex-start;margin-top:auto}
+.leaf-r{justify-content:center}
+.shake{animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.lamp{position:relative;touch-action:none;user-select:none;-webkit-user-select:none;background:var(--paper-2);box-shadow:inset 0 0 0 2px var(--paper-edge)}
+.lit{position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:radial-gradient(circle var(--r,120px) at var(--mx,50%) var(--my,50%),#12162000 0%,#1216204d 55%,#121620f2 100%)}
+.ws{display:grid;grid-template-columns:repeat(10,1fr);aspect-ratio:1;width:100%;max-width:460px}
+.ws-wrap{width:100%;max-width:460px;margin:0 auto}
+.c{display:grid;place-items:center;font-family:var(--book);font-size:clamp(15px,3.2vw,22px);color:var(--ink);position:relative}
+.c.sel{background:var(--rose);z-index:2}
+.c.f{background:var(--moss);z-index:2;color:#1f2a22}
+.noise{padding:18px 20px;min-height:300px}
+.babel{margin:0;font-family:var(--book);font-size:18px;line-height:1.95;word-spacing:.18em;color:var(--ink)}
+.tk{cursor:pointer;padding:0 .08em;position:relative}
+.tk:hover{text-decoration:underline dotted}
+.tk.ok{background:var(--moss);color:#1f2a22;z-index:2}
+.tk.bad{color:var(--bad);text-decoration:line-through}
+.ink-line{display:flex;flex-wrap:wrap;gap:8px 10px;margin-bottom:12px;font-family:var(--book);font-size:19px;min-height:30px}
+.blank{border-bottom:2px solid var(--ink-soft);min-width:1.4em;padding:0 2px;color:var(--sepia)}
+.blank.done{border-color:var(--sepia)}
+.ink{height:min(340px,48vh)}
+.inkw{position:absolute;transform:translate(-50%,-50%);z-index:2;font-family:var(--book);font-size:22px;color:var(--sepia);opacity:0;cursor:default;padding:4px 8px;white-space:nowrap;text-shadow:0 0 6px #d9a86c55}
+.inkw.ready{cursor:pointer}
+.inkw.ready:hover{outline:2px dashed var(--sepia)}
+.inkw.used{opacity:.25!important;text-decoration:line-through;pointer-events:none}
+.torn{display:flex;flex-direction:column;gap:8px;padding:16px}
+.strip{position:relative;z-index:2;text-align:left;font-family:var(--book);font-size:20px;color:var(--ink);background:#e6e0d6;border:0;padding:12px 14px;
+  clip-path:polygon(0 8%,4% 0,30% 6%,55% 0,80% 7%,100% 2%,99% 92%,74% 100%,50% 93%,22% 100%,2% 94%);box-shadow:none}
+.strip.sel{background:var(--rose)}
+.strip.ok{background:var(--moss)}
+
+.sheet{width:min(660px,100%);background:var(--paper);color:var(--ink);box-shadow:8px 8px 0 #000,0 0 0 2px var(--paper-edge);padding:26px 26px 22px;display:flex;flex-direction:column;gap:14px;max-height:100%;overflow:auto;position:relative}
+.sheet::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 160px 110px at 80% 70%,#8ea3bf26,transparent 70%)}
+.sheet .kicker{color:var(--ink-soft)}
+.sheet h2{margin:0;font-size:26px;text-wrap:balance}
+.sheet h3{margin:8px 0 0;font-size:19px;color:var(--ink)}
+.babelpage{margin:0;font-family:var(--book);font-size:16px;line-height:1.7;letter-spacing:.06em;white-space:pre-wrap;word-break:break-all;color:var(--ink)}
+.babelpage mark{background:var(--rose);color:var(--ink);padding:0 2px}
+.foot{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--ink-soft)}
+.sheet .ghost,.sheet .primary{align-self:flex-start}
+.sheet .ghost{border-color:var(--paper-edge);color:var(--ink)}
+.revealtext{margin:0;font-family:var(--book);font-size:21px;line-height:1.6;color:var(--ink);min-height:5em}
+.notetext{margin:0;font-family:var(--book);font-size:20px;line-height:1.6;color:var(--ink);font-style:italic}
+.jlist{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:14px}
+.jlist li{display:grid;grid-template-columns:38px 1fr;gap:10px;font-family:var(--book);font-size:17px;line-height:1.5}
+.jlist .n{font-family:var(--ui);color:var(--sepia);font-weight:600}
+.ending{background:#d9d4cc;color:var(--ink)}
+.ending .sheet{box-shadow:none;background:transparent}
+
+/* monster card */
+.mcard .sheet{background:#1a2030;color:var(--mist);box-shadow:8px 8px 0 #000,0 0 0 2px var(--rose)}
+.mcard .sheet::before{display:none}
+.mcard .kicker{color:var(--rose)}
+.mcard h2{color:var(--wax);font-size:30px}
+.mcard .myth{margin:0;font-family:var(--book);font-size:17px;line-height:1.5;color:var(--rain);font-style:italic}
+.rules{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px}
+.rules li{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start;font-family:var(--book);font-size:17px;line-height:1.45}
+.rules .g{display:grid;place-items:center;width:34px;height:34px;background:var(--slate);border:2px solid var(--slate-2);font-family:var(--ui);font-size:17px;color:var(--rain)}
+.rules .g.bad{color:var(--hot);border-color:var(--bad)}
+.rules .g.good{color:var(--moss);border-color:var(--moss)}
+.rules b{font-family:var(--ui);font-weight:600;color:var(--wax);display:block;font-size:14px;letter-spacing:.08em;text-transform:uppercase}
+.mcard .primary{align-self:stretch}
+.bcard{border-top:2px dashed var(--paper-edge);padding-top:12px}
+.bcard .rules li{font-size:15px}
+.bcard .rules .g{background:#cfc8bf;border-color:var(--paper-edge);color:var(--ink)}
+.bcard .rules b{color:var(--ink)}
+
+/* ---------- touch controls ---------- */
+.tzone,.tbtns,.stick{display:none}
+body.touch .tzone{display:block;position:fixed;left:0;top:130px;bottom:0;width:52%;z-index:4;touch-action:none}
+body.touch .stick{display:block;position:fixed;z-index:5;width:120px;height:120px;margin:-60px 0 0 -60px;pointer-events:none;border-radius:50%;
+  border:2px solid #cdd6e266;background:radial-gradient(circle,#11151f00 0 36%,#cdd6e214 37% 38%,#11151f66 39%);transition:opacity .2s}
+.stick.idle{opacity:.45}
+.knob{position:absolute;left:50%;top:50%;width:50px;height:50px;margin:-25px;border-radius:50%;background:var(--mist);box-shadow:0 0 0 3px #11151f,0 4px 0 3px #0008}
+.stick.sneak .knob{background:var(--moss)}
+.stick .lb{position:absolute;left:0;right:0;top:-24px;text-align:center;font-size:13px;color:var(--moss);text-shadow:1px 1px 0 #000}
+body.touch .tbtns{display:grid;position:fixed;z-index:6;right:max(14px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
+  grid-template-columns:62px 88px;grid-template-rows:62px 88px;gap:10px}
+.tb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0;background:#1d2433e0;border:2px solid var(--slate-2);box-shadow:3px 3px 0 #000a;color:var(--mist);touch-action:manipulation}
+.tb:active{transform:translate(2px,2px);box-shadow:none}
+.tb .g{font-size:20px;line-height:1}
+.tb .t{font-size:11px;letter-spacing:.04em;line-height:1.05;text-align:center;padding:0 3px}
+.tb.dim{opacity:.4}
+#t-act{grid-column:2;grid-row:2;border-color:var(--flame);color:var(--wax)}
+#t-act .t{font-size:12px}
+#t-act.hide{border-color:var(--moss);color:var(--moss)}
+#t-act.story{background:#3a3222e8}
+#t-candle{grid-column:1;grid-row:2}
+#t-candle.off{border-color:var(--rain);color:var(--rain)}
+#t-throw{grid-column:2;grid-row:1}
+#t-flash{grid-column:1;grid-row:1}
+body.touch .prompt{display:none!important}
+body.touch .toast{font-size:17px;top:17%}
+
+@media (max-width:720px){
+  .spread{grid-template-columns:1fr}
+  .leaf-l{border-right:0;border-bottom:2px dashed var(--paper-edge);padding-bottom:16px}
+  .leaf{padding:16px 14px}
+  .noise{padding:14px}
+  .babel{font-size:16px}
+  .guide,.alert{font-size:12px}
+  .guide{top:calc(env(safe-area-inset-top,0px) + 78px);left:16px;transform:none}
+  .alert{left:16px;transform:none;top:calc(env(safe-area-inset-top,0px) + 110px)}
+  .meta.hx{display:none}
+  .sheet{padding:20px 18px 18px}
+}
+@media (prefers-reduced-motion:reduce){.cndl .fl,.alert.hot{animation:none}.shake{animation:none}}
+</style>
+
+<div class="tags" id="tags"></div>
+<div class="hud" id="hud" hidden>
+  <div class="meter">
+    <div class="cndl" id="cndl"><div class="fill" id="wax"></div><div class="fl"></div></div>
+    <div class="meta">
+      <span class="lbl">Карманы</span>
+      <span class="inv"><span>спички <b id="matches">3</b></span><span>книги <b id="carry">0</b></span></span>
+      <span class="st" id="status"></span>
+    </div>
+    <div class="meta hx">
+      <span class="lbl">Шестигранник</span>
+      <span class="val" id="hexno">№ 4096 · ряд 0</span>
+      <span class="st"></span>
+    </div>
+  </div>
+  <div class="right">
+    <div class="frag">Обрывки <b id="fragn">0</b>/9</div>
+    <div class="hbtns">
+      <button class="px" id="btn-journal" title="Дневник (J)">Дневник</button>
+      <button class="px" id="btn-sound" title="Звук (M)">Звук</button>
+    </div>
+  </div>
+</div>
+<div class="guide" id="guide"><span class="arrow"><i id="arrow">▲</i></span><span id="guide-t"></span></div>
+<div class="alert" id="alert"></div>
+<div class="gust" id="gust">~ сквозняк ~</div>
+<div class="prompt" id="prompt" hidden><span class="key">E</span><span id="prompt-t"></span></div>
+<div class="toast" id="toast" style="opacity:0"></div>
+
+<div class="tzone" id="tzone"></div>
+<div class="stick idle" id="stick"><span class="lb" id="stick-lb"></span><div class="knob" id="knob"></div></div>
+<div class="tbtns" id="tbtns">
+  <button class="tb" id="t-flash"><span class="g">✦</span><span class="t">вспышка</span></button>
+  <button class="tb" id="t-throw"><span class="g">▰</span><span class="t" id="t-throw-t">бросить</span></button>
+  <button class="tb" id="t-candle"><span class="g">♨</span><span class="t" id="t-candle-t">задуть</span></button>
+  <button class="tb dim" id="t-act"><span class="g" id="t-act-g">●</span><span class="t" id="t-act-t">—</span></button>
+</div>
+
+<div class="overlay title" id="title">
+  <div class="title-card">
+    <p class="kicker">Инди-прототип · по мотивам Борхеса</p>
+    <h1>Свеча<br><span>в Вавилоне</span></h1>
+    <p class="lede">Мальчик просыпается в бесконечной библиотеке: залы уходят во все стороны, и дождь идёт прямо внутри. Среди бессчётных бессмысленных книг есть девять страниц о том, как он сюда попал. В темноте бродят существа из старых мифов. Они боятся огня, но свет их и приманивает.</p>
+    <div class="btns">
+      <button class="primary" id="btn-start">Войти в библиотеку</button>
+      <button class="ghost" id="btn-reset" hidden>Начать заново</button>
+    </div>
+    <dl class="keys only-keys">
+      <dt>WASD · стрелки</dt><dd>ходить; Shift — красться тихо</dd>
+      <dt>E · пробел</dt><dd>спрятаться в нишу, взять книгу, прочитать</dd>
+      <dt>F · Q · G</dt><dd>задуть или зажечь свечу · вспышка · бросить книгу</dd>
+      <dt>J · M</dt><dd>дневник · звук</dd>
+    </dl>
+    <dl class="keys only-touch">
+      <dt>Левая половина</dt><dd>джойстик: слабый наклон — красться тихо</dd>
+      <dt>Большая кнопка</dt><dd>действие: спрятаться, взять, прочитать</dd>
+      <dt>Малые кнопки</dt><dd>свеча · вспышка · бросить книгу</dd>
+    </dl>
+  </div>
+</div>
+
+<div class="overlay mcard" id="mcard" hidden>
+  <div class="sheet">
+    <p class="kicker" id="mc-k"></p>
+    <h2 id="mc-name"></h2>
+    <p class="myth" id="mc-myth"></p>
+    <ul class="rules" id="mc-rules"></ul>
+    <button class="primary" id="mc-ok">Понятно</button>
+  </div>
+</div>
+
+<div class="overlay" id="book" hidden>
+  <div class="spread" id="spread">
+    <section class="leaf leaf-l">
+      <p class="kicker" id="bk-kicker"></p>
+      <h2 id="bk-title"></h2>
+      <p id="bk-hint"></p>
+      <ul class="wlist" id="bk-list"></ul>
+      <p class="cost" id="bk-cost">Каждая ошибка стоит воска.</p>
+      <button class="ghost" id="bk-close">Закрыть книгу</button>
+    </section>
+    <section class="leaf leaf-r" id="bk-area"></section>
+  </div>
+</div>
+
+<div class="overlay" id="reader" hidden>
+  <div class="sheet">
+    <p class="kicker" id="rd-head"></p>
+    <p class="babelpage" id="rd-text"></p>
+    <div class="foot"><span id="rd-page"></span><button class="ghost" id="rd-close">Поставить на полку</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="note" hidden>
+  <div class="sheet">
+    <p class="kicker">Записка на полу</p>
+    <p class="notetext" id="nt-text"></p>
+    <button class="ghost" id="nt-close">Сложить в карман</button>
+  </div>
+</div>
+
+<div class="overlay" id="reveal" hidden>
+  <div class="sheet">
+    <p class="kicker" id="rv-head"></p>
+    <p class="revealtext" id="rv-text"></p>
+    <button class="primary" id="rv-next">Спрятать страницу в карман</button>
+  </div>
+</div>
+
+<div class="overlay" id="journal" hidden>
+  <div class="sheet">
+    <p class="kicker">Дневник</p>
+    <h2>Что я знаю</h2>
+    <ul class="jlist" id="jlist"></ul>
+    <h3>Кто бродит в темноте</h3>
+    <div id="blist"></div>
+    <h3>Записки других читателей</h3>
+    <ul class="jlist" id="nlist"></ul>
+    <button class="ghost" id="jr-close">Закрыть</button>
+  </div>
+</div>
+
+<div class="overlay ending" id="ending" hidden>
+  <div class="sheet">
+    <p class="kicker">Последняя страница</p>
+    <p class="revealtext" id="end-text"></p>
+    <button class="primary" id="end-again">Начать заново</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(()=>{
+const $=s=>document.querySelector(s);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+function hash(n){n=(n|0)^0x9e3779b9;n=Math.imul(n^(n>>>16),0x85ebca6b);n=Math.imul(n^(n>>>13),0xc2b2ae35);return (n^(n>>>16))>>>0;}
+const ROMAN=['I','II','III','IV','V','VI','VII','VIII','IX'];
+const rnd=Math.random;
+
+/* ================= STORY ================= */
+const FR=[
+ {t:"…в тот вечер шёл дождь, и мальчик остался в доме деда один. Уходя, дед сказал: «Не открывай синюю дверь в конце коридора».",
+  words:["ДОЖДЬ","ВЕЧЕР","ДВЕРЬ","ДЕД"], s:"не открывай синюю дверь в конце коридора"},
+ {t:"Дед всю жизнь был библиотекарем. Он переписывал книги, которые никто не читал, и говорил, что где-то есть книга, в которой записан каждый из нас.",
+  words:["КНИГА","ЖИЗНЬ","КАЖДЫЙ","ЗАПИСАН"], s:"есть книга в которой записан каждый"},
+ {t:"Мальчик всё-таки открыл синюю дверь. За ней пахло пылью и мокрой бумагой. Лампа не зажглась, и он взял с подоконника свечу.",
+  words:["СВЕЧА","ПЫЛЬ","БУМАГА","ЛАМПА"], s:"он взял с подоконника свечу"},
+ {t:"Залы здесь шестигранные, и им нет конца ни вширь, ни вглубь. На одной полке кто-то вырезал ножом: «Сорок лет ищу выход. Ищи не выход, а смысл».",
+  words:["ЗАЛЫ","ПОЛКА","ВЫХОД","СМЫСЛ"], s:"ищи не выход а смысл"},
+ {t:"Дождь идёт и здесь. Он сочится сквозь колодцы между этажами. Старые библиотекари верят, что это вода из мира наверху, где тебя ещё помнят.",
+  words:["КОЛОДЦЫ","ВОДА","НАВЕРХУ","ПОМНЯТ"], s:"вода из мира где тебя ещё помнят"},
+ {t:"В темноте живут те, кого забыли. Лихо, Сирин, одинокий Астерион. Они идут на свет, потому что свет — это память. Но огня они боятся.",
+  words:["ТЕМНОТЕ","ЗАБЫЛИ","СВЕТ","ОГНЯ"], s:"они идут на свет потому что свет это память"},
+ {t:"Дед тоже однажды открыл синюю дверь. Он не вернулся. Но он оставил на подоконнике свечу, для того, кто пойдёт следом.",
+  words:["СВЕЧУ","СЛЕДОМ","ДЕД","ДВЕРЬ"], s:"для того кто пойдёт следом"},
+ {t:"Дед где-то здесь. Он всё ещё переписывает книги, и в одной из них он пишет тебя, строчку за строчкой, чтобы ты не заблудился.",
+  words:["СТРОЧКУ","ПИШЕТ","ТЕБЯ","КНИГИ"], s:"он пишет тебя строчку за строчкой"},
+ {t:"Выход не дверь. Выход — это книга, где описан весь твой путь до этой страницы. Ты читаешь её прямо сейчас.",
+  words:["ВЫХОД","ПУТЬ","КНИГА","СЕЙЧАС"], s:"ты читаешь её прямо сейчас"},
+];
+const ENDING="Мальчик закрыл книгу. За окном дедовского дома стихал дождь. На подоконнике стояла свеча, догоревшая ровно наполовину. А в конце коридора, за синей дверью, кто-то тихо перевернул страницу.";
+const TARGETS=[[1,-1],[-2,-3],[2,2],[4,-5],[0,-8],[-4,-6],[-6,-1],[-2,-11],[3,-10]];
+const NOTES=[
+ "Лихо смотрит одним глазом, и глаз этот видит только огонь. Потуши свечу, и ты для него просто пыль. Только не подходи к нему вплотную.",
+ "Жёлтое кольцо света на полу вокруг тебя — граница, которую они боятся переступить. Чем короче свеча, тем уже кольцо. И каждый смелеет, если долго стоит у края.",
+ "Сирин поёт тем, кто топает. Круги на полу показывают, как далеко слышны твои шаги. Ступай тихо, и круги станут маленькими.",
+ "Шуршащие страницы на полу слышны на полбиблиотеки. Обходи их или ступай по ним очень тихо.",
+ "Брось книгу подальше. Сирин полетит на звук. Астерион кинется за ним по прямой и расшибёт лоб о полку. Лихо звука не слышит.",
+ "Когда Астерион наклоняет рога, на полу загорается полоса. Уйди с неё в сторону или за стеллаж.",
+ "Лампады зажгли первые библиотекари. Ни одна тварь не подойдёт к их свету. От лампады можно зажечь свечу без спички.",
+ "Из колодцев тянет сквозняком. Когда потянет, замри или ступай тихо, иначе пламя сорвёт.",
+ "Дед оставлял тайники в нишах. Ищи жёлтые ленточки на полках.",
+ "Вспышка отгоняет всех, кто рядом. Всех, кроме того, кто уже несётся на тебя.",
+ "Если залез в нишу с горящей свечой, свет пробьётся сквозь книги. И если тебя видели, когда ты залезал, найдут всё равно.",
+ "Я сорок лет ищу Книгу-каталог. Иногда мне кажется, что её пишет кто-то прямо сейчас."
+];
+
+/* ================= MONSTER TYPES ================= */
+const MT={
+ lixo:{name:'Лихо Одноглазое',short:'Лихо',icon:'◉',walk:1.25,run:2.45,brave:4.5,catchT:'Лихо схватило тебя за рукав холодными пальцами…',
+  myth:'Худое, высокое, с одним глазом во лбу. В сказках от него не убегают, а обманывают.',
+  rules:[['◉','','Чует','свет свечи, и очень издалека. В темноте замечает, только если столкнётся вплотную.'],
+         ['○','','Боится','огня. Не заходит в жёлтое кольцо света, но у края смелеет: полоска над его головой заполняется.'],
+         ['✕','bad','Не поможет','бросать книги. Лихо не слышит звуков.'],
+         ['✓','good','Спасение','задуй свечу, уйди у него из виду и залезь в нишу. Или добеги до лампады.']]},
+ sirin:{name:'Сирин',short:'Сирин',icon:'∿',walk:1.6,run:3.05,brave:2.6,catchT:'Сирин запела, и ты уснул прямо на полу…',
+  myth:'Райская птица с лицом девы. Кто услышит её песню, забывает всё на свете.',
+  rules:[['∿','','Чует','шаги. Голубые круги на полу показывают, как далеко тебя слышно. Свет ей не виден.'],
+         ['○','','Боится','огня, но привыкает к нему быстро.'],
+         ['▰','good','Отвлечь','брось книгу: Сирин полетит на звук.'],
+         ['✓','good','Спасение','крадись (Shift или слабый наклон джойстика) или замри. Обходи шуршащие страницы.']]},
+ asterion:{name:'Астерион',short:'Астерион',icon:'▼',walk:1.45,run:2.1,brave:3.4,catchT:'Астерион подхватил тебя на рога и унёс в свои бесконечные коридоры…',
+  myth:'Тот самый, из дома, где все коридоры одинаковы. Он одинок и не знает своей силы.',
+  rules:[['◎','','Чует','видит и в темноте, хоть и недалеко, шагов на пять. С огнём видит издалека.'],
+         ['━','bad','Опасен','рывком по прямой. Перед рывком на полу загорается красная полоса.'],
+         ['✓','good','Спасение','уйди с полосы за стеллаж. Врезавшись в полку или в свет лампады, он оглушён.'],
+         ['▰','good','Хитрость','брось книгу у стены: он кинется на звук и сам расшибёт лоб.']]},
+};
+
+/* ================= AUDIO ================= */
+const AU={ctx:null,master:null,on:true,noise:null,
+ init(){ if(this.ctx) return; try{
+  const C=window.AudioContext||window.webkitAudioContext; if(!C) return;
+  const ctx=this.ctx=new C(); this.master=ctx.createGain(); this.master.gain.value=.8; this.master.connect(ctx.destination);
+  const buf=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate); const d=buf.getChannelData(0); for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1; this.noise=buf;
+  const rain=ctx.createBufferSource(); rain.buffer=buf; rain.loop=true;
+  const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1300;
+  const g1=ctx.createGain(); g1.gain.value=.07; rain.connect(lp); lp.connect(g1); g1.connect(this.master);
+  const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=3200;
+  const g2=ctx.createGain(); g2.gain.value=.016; rain.connect(hp); hp.connect(g2); g2.connect(this.master); rain.start();
+  const wind=ctx.createBufferSource(); wind.buffer=buf; wind.loop=true; const wf=ctx.createBiquadFilter(); wf.type='bandpass'; wf.frequency.value=500; wf.Q.value=.8;
+  this.windG=ctx.createGain(); this.windG.gain.value=0; wind.connect(wf); wf.connect(this.windG); this.windG.connect(this.master); wind.start();
+  [[55,.02],[82.4,.012],[110.3,.005]].forEach(([f,v])=>{const o=ctx.createOscillator();o.frequency.value=f;const g=ctx.createGain();g.gain.value=v;o.connect(g);g.connect(this.master);o.start();});
+  const drip=()=>{ if(this.on) this.drip(); setTimeout(drip,900+Math.random()*3200); }; drip();
+ }catch(e){this.ctx=null;} },
+ out(g,pan){ const c=this.ctx; if(c.createStereoPanner){const p=c.createStereoPanner();p.pan.value=clamp(pan||0,-1,1);g.connect(p);p.connect(this.master);} else g.connect(this.master); },
+ tone(f,dur,type='sine',vol=.06,when=0,pan=0){ const c=this.ctx; if(!c||!this.on) return; const t=c.currentTime+when;
+  const o=c.createOscillator(); o.type=type; o.frequency.setValueAtTime(f,t); const g=c.createGain(); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+.01); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g); this.out(g,pan); o.start(t); o.stop(t+dur+.05); return o; },
+ burst(dur,freq,vol,type='lowpass',pan=0,q=1){ const c=this.ctx; if(!c||!this.on) return; const t=c.currentTime; const s=c.createBufferSource(); s.buffer=this.noise;
+  const f=c.createBiquadFilter(); f.type=type; f.frequency.value=freq; f.Q.value=q; const g=c.createGain(); g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  s.connect(f); f.connect(g); this.out(g,pan); s.start(t,Math.random()); s.stop(t+dur+.02); },
+ wind(v){ if(!this.windG) return; this.windG.gain.setTargetAtTime(this.on?v:0,this.ctx.currentTime,.3); },
+ drip(){ const o=this.tone(1400+Math.random()*900,.18,'sine',.03,0,Math.random()*1.6-.8); if(o) o.frequency.exponentialRampToValueAtTime(700,this.ctx.currentTime+.15); },
+ step(){ this.burst(.06,500,.05); },
+ flip(){ this.burst(.22,2600,.07,'bandpass'); },
+ rustle(){ this.burst(.45,3000,.14,'bandpass',0,.7); this.burst(.3,1800,.08,'bandpass'); },
+ chime(){ this.tone(988,.5,'sine',.05); this.tone(1480,.7,'sine',.035,.08); },
+ good(){ [523,659,784,1046].forEach((f,i)=>this.tone(f,.6,'triangle',.045,i*.09)); },
+ loot(){ [659,880,1175].forEach((f,i)=>this.tone(f,.5,'triangle',.04,i*.07)); },
+ bad(){ this.tone(170,.22,'triangle',.07); },
+ blow(){ this.burst(.35,900,.09,'bandpass'); },
+ strike(){ this.burst(.12,3800,.12,'highpass'); this.burst(.4,1200,.05,'bandpass'); },
+ flash(){ this.burst(.5,700,.12,'lowpass'); this.tone(330,.6,'triangle',.04); },
+ whoosh(){ this.burst(.25,1400,.06,'bandpass',0,2); },
+ land(pan){ this.burst(.25,300,.2,'lowpass',pan); this.burst(.15,2200,.06,'bandpass',pan); },
+ beat(v){ this.tone(58,.18,'sine',.16*v); this.tone(52,.2,'sine',.12*v,.22); },
+ notice(pan){ this.tone(220,.9,'sawtooth',.018,0,pan); this.tone(233,.9,'sawtooth',.014,0,pan); },
+ whisper(pan,v){ this.burst(.7,1100+Math.random()*500,.05*v,'bandpass',pan,6); },
+ song(pan,v){ const o=this.tone(880,1.3,'triangle',.03*v,0,pan); if(o) o.frequency.exponentialRampToValueAtTime(620,this.ctx.currentTime+1.2); },
+ hoof(pan,v){ this.burst(.12,180,.14*v,'lowpass',pan); },
+ snort(pan){ this.burst(.5,420,.16,'bandpass',pan,2); },
+ thud(){ this.burst(.5,120,.35,'lowpass'); this.flip(); },
+ caught(){ [196,185,174].forEach((f,i)=>this.tone(f,1.2,'sawtooth',.04,i*.25)); },
+ toggle(){ this.on=!this.on; if(this.master) this.master.gain.value=this.on?.8:0; $('#btn-sound').textContent=this.on?'Звук':'Тихо'; }
+};
+
+/* ================= RENDERER ================= */
+const renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});
+renderer.domElement.id='game'; document.body.prepend(renderer.domElement);
+renderer.setPixelRatio(1);
+const scene=new THREE.Scene(); const FOG=0x141a28;
+scene.background=new THREE.Color(FOG); scene.fog=new THREE.FogExp2(FOG,0.042);
+const camera=new THREE.PerspectiveCamera(36,1,.1,140);
+let camDist=12.5, camH=6.6;
+const rt=new THREE.WebGLRenderTarget(4,4,{minFilter:THREE.NearestFilter,magFilter:THREE.NearestFilter});
+const postScene=new THREE.Scene(); const postCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+const postMat=new THREE.ShaderMaterial({
+ uniforms:{t:{value:rt.texture},res:{value:new THREE.Vector2(1,1)},dark:{value:0},danger:{value:0},hid:{value:0}},
+ vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
+ fragmentShader:`uniform sampler2D t;uniform vec2 res;uniform float dark,danger,hid;varying vec2 vUv;
+ float B2(vec2 a){a=floor(a);return fract(a.x/2.+a.y*a.y*.75);}
+ float B4(vec2 a){return B2(.5*a)*.25+B2(a);}
+ void main(){
+  vec3 c=texture2D(t,vUv).rgb;
+  float l=dot(c,vec3(.299,.587,.114));
+  c=mix(c,c*vec3(.84,.94,1.14),.5*(1.-smoothstep(.15,.65,l)));
+  c+=vec3(.024,.03,.048);
+  vec2 p=vUv-.5; float r=length(p);
+  c*=1.-dot(p,p)*1.05;
+  c=mix(c,c*vec3(1.1,.72,.86),danger*smoothstep(.18,.55,r));
+  c*=1.-danger*.5*smoothstep(.3,.7,r);
+  c*=1.-hid*.75*smoothstep(.2,.48,max(abs(p.x)*.9,abs(p.y)*1.25));
+  c*=1.-dark;
+  float L=10.; c=floor(c*L+B4(vUv*res))/L;
+  gl_FragColor=vec4(c,1.);
+ }`, depthTest:false, depthWrite:false});
+postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),postMat));
+function resize(){ const w=innerWidth,h=innerHeight; const S=Math.max(2,Math.round(Math.max(h,w*.56)/330)); const lw=Math.ceil(w/S),lh=Math.ceil(h/S);
+ renderer.setSize(lw,lh,false); rt.setSize(lw,lh); camera.aspect=lw/lh;
+ const a=lw/lh; camera.fov=a<1?44:36; camDist=a<1?12.5+(1-a)*9:12.5; camH=a<1?7.4+(1-a)*3:6.6;
+ camera.updateProjectionMatrix(); postMat.uniforms.res.value.set(lw,lh); }
+addEventListener('resize',resize);
+
+scene.add(new THREE.AmbientLight(0x3c4a66,.9));
+scene.add(new THREE.HemisphereLight(0x7a8fb0,0x1a1520,.32));
+const candleLight=new THREE.PointLight(0xffc27a,2.2,11,1.5); scene.add(candleLight);
+const storyLight=new THREE.PointLight(0xffe2a8,0,5.5,2); scene.add(storyLight);
+const lampLights=[0,1,2].map(()=>{const l=new THREE.PointLight(0xffcf8f,0,7,1.6); scene.add(l); return l;});
+
+/* ================= MATERIALS ================= */
+const BOX=new THREE.BoxGeometry(1,1,1);
+const phong=(c,o={})=>new THREE.MeshPhongMaterial(Object.assign({color:c,shininess:4,specular:0x111111},o));
+const basic=c=>new THREE.MeshBasicMaterial({color:c});
+const woodMat=phong(0x5b4a58), stoneMat=phong(0x485068), railMat=phong(0x4d4150), ironMat=phong(0x3a3f4e);
+const bookMat=phong(0xffffff,{shininess:8});
+const waxMat=phong(0xf0e2c4), flameMat=basic(0xffd28a), lampGlass=basic(0xffd9a0), holeMat=basic(0x07090f);
+const paperMat=phong(0xe4ded2), noteMat=basic(0xf4ecd8);
+const puddleMat=phong(0x283248,{shininess:70,specular:0x9fb2d0});
+const dropMat=new THREE.MeshBasicMaterial({color:0xa6bad6,transparent:true,opacity:.75});
+const ringMat=new THREE.MeshBasicMaterial({color:0xa9bcd8,transparent:true,opacity:.6,side:THREE.DoubleSide});
+const beamMat=new THREE.MeshBasicMaterial({color:0x9fb4d6,transparent:true,opacity:.07,depthWrite:false,blending:THREE.AdditiveBlending});
+const rainLineMat=new THREE.LineBasicMaterial({color:0x8ea4c4,transparent:true,opacity:.55});
+const matchMat=phong(0xb5646a), strikeMat=phong(0xd8c7a0);
+const shadowMat=new THREE.MeshBasicMaterial({color:0x05060a,transparent:true,opacity:.42,depthWrite:false});
+const PASTEL=[0xc9a3b0,0x9fb4a3,0x9db2c9,0xb3a7c9,0xd6cba0,0xa8c4c4,0xc4a89a,0x8f9cb8,0xd8c2cf,0x7f9488,0xe0d6c6];
+const pastelMats={}; const pastelMat=h=>pastelMats[h]||(pastelMats[h]=phong(h));
+function floorTex(){ const c=document.createElement('canvas'); c.width=64; c.height=74; const x=c.getContext('2d');
+ x.fillStyle='#4b5165'; x.fillRect(0,0,64,74); x.strokeStyle='#343a4c'; x.lineWidth=2;
+ const r=64/3,h=Math.sqrt(3)*r;
+ for(let col=-1;col<5;col++)for(let row=-1;row<4;row++){const cx=col*r*1.5,cy=row*h+(((col%2)+2)%2?h/2:0);x.beginPath();for(let i=0;i<6;i++){const a=Math.PI/3*i;x.lineTo(cx+r*Math.cos(a),cy+r*Math.sin(a));}x.closePath();x.stroke();}
+ const R=mulberry32(7); for(let i=0;i<260;i++){x.fillStyle=R()<.5?'rgba(255,255,255,.05)':'rgba(0,0,0,.09)';x.fillRect(R()*64|0,R()*74|0,2,2);}
+ const t=new THREE.CanvasTexture(c); t.magFilter=t.minFilter=THREE.NearestFilter; t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(8,3); return t; }
+function glowTex(){ const c=document.createElement('canvas'); c.width=c.height=32; const x=c.getContext('2d');
+ const g=x.createRadialGradient(16,16,0,16,16,16); g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(.25,'rgba(255,255,255,.45)'); g.addColorStop(1,'rgba(255,255,255,0)');
+ x.fillStyle=g; x.fillRect(0,0,32,32); const t=new THREE.CanvasTexture(c); t.magFilter=t.minFilter=THREE.NearestFilter; return t; }
+const GLOW=glowTex();
+const glowMats={}; function glowMat(c,o=.6){ const k=c+':'+o; return glowMats[k]||(glowMats[k]=new THREE.SpriteMaterial({map:GLOW,color:c,transparent:true,opacity:o,depthWrite:false,blending:THREE.AdditiveBlending})); }
+function glow(c,s,o,parent,x=0,y=0,z=0){ const sp=new THREE.Sprite(glowMat(c,o)); sp.scale.set(s,s,1); sp.position.set(x,y,z); parent.add(sp); return sp; }
+
+/* ================= WORLD LAYOUT ================= */
+const CW=16, RS=6, HALF=.45, ROWH=.85, NR=5, SH=NR*ROWH+.1;
+const floorMat=phong(0xffffff,{map:floorTex()});
+const floorGeo=new THREE.PlaneGeometry(CW,RS);
+const puddleGeo=new THREE.CircleGeometry(1,10); const ringGeo=new THREE.RingGeometry(.7,1,12), circGeo=new THREE.CircleGeometry(1,12);
+const LAY=new Map();
+function layout(gx,k){
+ const key=gx+','+k; let L=LAY.get(key); if(L) return L;
+ if(LAY.size>6000) LAY.clear();
+ const rng=mulberry32(hash(Math.imul(gx,73856093)^Math.imul(k,19349663)^0x2545F491));
+ const x0=gx*CW, zr=k*RS+3;
+ L={key,gx,k,x0,zr,segs:[],gaps:[],well:null,niches:[],lamps:[],items:[]};
+ const safe=gx===0&&(k===0||k===-1);
+ if(!safe&&rng()<.1){ L.well={x1:x0+5,x2:x0+11}; L.gaps=[[x0,x0+5],[x0+11,x0+CW]]; }
+ else{
+  const cs=rng()<.45?[x0+1.6+rng()*5,x0+9.4+rng()*5]:[x0+2+rng()*12];
+  let x=x0;
+  for(const c of cs){ const a=c-1,b=c+1; if(a-x>=1.4){L.segs.push({x1:x,x2:a});L.gaps.push([a,b]);} else L.gaps.push([x,b]); x=b; }
+  if(x0+CW-x>=1.4) L.segs.push({x1:x,x2:x0+CW}); else L.gaps.push([x,x0+CW]);
+  L.segs.forEach((s,i)=>{ const len=s.x2-s.x1; if(len>3.2&&rng()<.72){ const n={x:s.x1+1.1+rng()*(len-2.2),side:rng()<.5?1:-1,zr,k,id:'n'+key+':'+i}; n.stash=rng()<.24; s.niche=n; L.niches.push(n);} });
+  if(rng()<.3){ const s=L.segs.find(s=>s.x2<x0+CW-.6)||null, s2=L.segs.find(s=>s.x1>x0+.6)||null;
+   if(s) L.lamps.push({x:s.x2+.38,ax:s.x2,z:zr}); else if(s2) L.lamps.push({x:s2.x1-.38,ax:s2.x1,z:zr}); }
+ }
+ const ip=()=>[x0+1+rng()*(CW-2), zr+1.9+rng()*2.2];
+ if(rng()<.4){const [x,z]=ip(); L.items.push({t:'stub',id:'s'+key,x,z});}
+ if(rng()<.16){const [x,z]=ip(); L.items.push({t:'match',id:'m'+key,x,z});}
+ if(rng()<.3){const [x,z]=ip(); L.items.push({t:'puddle',x,z,r:.35+rng()*.45,off:rng(),sp:.35+rng()*.25});}
+ if(rng()<.26&&!safe){const [x,z]=ip(); L.items.push({t:'paper',x,z});}
+ if(rng()<.1){const [x,z]=ip(); L.items.push({t:'note',id:'t'+key,x,z,n:hash(gx*31+k*17)%NOTES.length});}
+ const nb=rng()*3|0; for(let i=0;i<nb;i++){const [x,z]=ip(); L.items.push({t:'fallen',id:'f'+key+':'+i,x,z,c:PASTEL[rng()*PASTEL.length|0],a:rng()*Math.PI});}
+ LAY.set(key,L); return L;
+}
+const rowOf=z=>Math.round((z-3)/RS);
+function solidAt(x,z,r){
+ const k=rowOf(z), zr=k*RS+3, dz=Math.abs(z-zr);
+ if(dz>1.5+r) return false;
+ const g1=Math.floor((x-r)/CW), g2=Math.floor((x+r)/CW);
+ for(let g=g1;g<=g2;g++){ const L=layout(g,k);
+  if(dz<HALF+r) for(const s of L.segs) if(x+r>s.x1&&x-r<s.x2) return true;
+  if(L.well&&dz<1.5+r&&x+r>L.well.x1&&x-r<L.well.x2) return true; }
+ return false;
+}
+function rowBlocksX(x,k){ const L=layout(Math.floor(x/CW),k);
+ for(const s of L.segs) if(x>s.x1-.05&&x<s.x2+.05) return true;
+ return !!(L.well&&x>L.well.x1&&x<L.well.x2); }
+function lineOfSight(ax,az,bx,bz){
+ const lo=Math.min(az,bz), hi=Math.max(az,bz);
+ for(let k=Math.ceil((lo-3)/RS);k*RS+3<hi;k++){ const zr=k*RS+3; if(zr<=lo) continue;
+  const t=(zr-az)/(bz-az); if(rowBlocksX(ax+t*(bx-ax),k)) return false; }
+ return true;
+}
+function nearLamp(x,z,r){ const k=rowOf(z), g=Math.floor(x/CW);
+ for(let kk=k-1;kk<=k+1;kk++) for(let gg=g-1;gg<=g+1;gg++) for(const l of layout(gg,kk).lamps) if(Math.hypot(l.x-x,l.z-z)<r) return l;
+ return null; }
+function nearestGap(k,mx,tx){ const g0=Math.floor(mx/CW); let best=mx,bd=1e9;
+ for(let g=g0-2;g<=g0+2;g++) for(const [a,b] of layout(g,k).gaps){ if(b-a<1) continue; const c=(a+b)/2, d=Math.abs(c-mx)+Math.abs(c-tx)*.5; if(d<bd){bd=d;best=c;} }
+ return best; }
+
+/* ================= CHUNK MESHES ================= */
+function box(mat,x,y,z,sx,sy,sz,parent){const m=new THREE.Mesh(BOX,mat);m.position.set(x,y,z);m.scale.set(sx,sy,sz);parent.add(m);return m;}
+const _m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_e=new THREE.Euler(),_p=new THREE.Vector3(),_s=new THREE.Vector3();
+function inst(list,mat,colored){ const im=new THREE.InstancedMesh(BOX,mat,Math.max(1,list.length)); im.frustumCulled=false;
+ list.forEach((b,i)=>{ _p.set(b[0],b[1],b[2]); _e.set(0,0,b[7]||0); _q.setFromEuler(_e); _s.set(b[3],b[4],b[5]); im.setMatrixAt(i,_m.compose(_p,_q,_s)); if(colored) im.setColorAt(i,b[6]); });
+ im.count=list.length; im.instanceMatrix.needsUpdate=true; if(im.instanceColor) im.instanceColor.needsUpdate=true; return im; }
+function shelfBoxes(s,zr,rng,F,B){
+ const x1=s.x1,x2=s.x2,cx=(x1+x2)/2,len=x2-x1,d=HALF*2,n=s.niche;
+ F.push([x1+.06,SH/2,zr,.12,SH,d],[x2-.06,SH/2,zr,.12,SH,d],[cx,SH/2,zr,len,SH,.06],[cx,SH+.06,zr,len+.08,.1,d+.08]);
+ for(let r=0;r<=NR;r++) F.push([cx,r*ROWH+.04,zr,len,.08,d]);
+ const bd=HALF-.08;
+ for(const side of [1,-1]) for(let r=0;r<NR;r++){
+  let x=x1+.14; const y0=r*ROWH+.08, skip=n&&n.side===side&&r===0;
+  while(true){ const w=.12+rng()*.13; if(x+w>x2-.14) break;
+   if(skip&&x+w>n.x-.5&&x<n.x+.5){x=n.x+.5;continue;}
+   if(rng()<.05){x+=w*1.6;continue;}
+   const h=.42+rng()*.28, lean=rng()<.04?(rng()-.5)*.5:0;
+   const col=new THREE.Color(PASTEL[(rng()*PASTEL.length)|0]); col.offsetHSL((rng()-.5)*.03,(rng()-.5)*.1,(rng()-.5)*.14);
+   B.push([x+w/2,y0+h/2,zr+side*(.03+bd/2),w*.93,h,bd,col,lean]);
+   if(!lean&&rng()<.4){ const bc=col.clone(); bc.offsetHSL(0,-.05,rng()<.5?.16:-.14); const face=zr+side*(.03+bd+.004);
+    B.push([x+w/2,y0+h*(.62+rng()*.2),face,w*.9,.035,.012,bc,0]); if(rng()<.5) B.push([x+w/2,y0+h*.2,face,w*.9,.03,.012,bc,0]); }
+   x+=w; }
+ }
+ if(n){ B.push([n.x,ROWH/2,zr+n.side*.05,.9,.72,.03,new THREE.Color(0x181b26),0]); B.push([n.x,.11,zr+n.side*.24,.72,.05,.32,new THREE.Color(0x9d8fae),0]);
+  if(n.stash&&!picked.has(n.id)){ B.push([n.x-.3,ROWH-.14,zr+n.side*(HALF-.02),.08,.26,.02,new THREE.Color(0xe8d27a),0]); B.push([n.x-.26,ROWH-.02,zr+n.side*(HALF-.02),.2,.05,.02,new THREE.Color(0xe8d27a),0]); } }
+}
+const chunks=new Map(); const picked=new Set();
+function buildChunk(gx,k){
+ const L=layout(gx,k), x0=L.x0, zr=L.zr, grp=new THREE.Group();
+ const rng=mulberry32(hash(gx*92821+k*68917+5));
+ const C={key:L.key,gx,k,zr,x0,L,grp,fade:null,ims:[],mats:[],items:[],drips:[],rain:null,lamps:[]};
+ const fl=new THREE.Mesh(floorGeo,floorMat); fl.rotation.x=-Math.PI/2; fl.position.set(x0+CW/2,0,zr); grp.add(fl);
+ if(L.segs.length){
+  const fm=woodMat.clone(), bm=bookMat.clone(); fm.transparent=bm.transparent=true; C.mats.push(fm,bm);
+  const F=[],B=[]; for(const s of L.segs) shelfBoxes(s,zr,rng,F,B);
+  const a=inst(F,fm,false), b=inst(B,bm,true); grp.add(a,b); C.ims.push(a,b); C.fade={mats:[fm,bm],op:1};
+  for(const s of L.segs) box(shadowMat,(s.x1+s.x2)/2,.006,zr,s.x2-s.x1+.3,.01,HALF*2+.5,grp);
+ }
+ if(L.well){ const w=L.well, cx=(w.x1+w.x2)/2;
+  const hole=new THREE.Mesh(new THREE.PlaneGeometry(w.x2-w.x1-.2,2.8),holeMat); hole.rotation.x=-Math.PI/2; hole.position.set(cx,.012,zr); grp.add(hole); C.mats.push({dispose:()=>hole.geometry.dispose()});
+  for(const zz of [zr-1.45,zr+1.45]){ box(railMat,cx,.9,zz,w.x2-w.x1,.08,.08,grp); box(railMat,cx,.45,zz,w.x2-w.x1,.05,.05,grp); }
+  for(const xx of [w.x1+.05,w.x2-.05]){ box(railMat,xx,.9,zr,.08,.08,2.9,grp); }
+  for(let x=w.x1+.05;x<=w.x2;x+=1) for(const zz of [zr-1.45,zr+1.45]) box(railMat,x,.45,zz,.1,.9,.1,grp);
+  const beam=box(beamMat,cx,6,zr,w.x2-w.x1-.6,12,2.4,grp); beam.renderOrder=2;
+  const N=60, pos=new Float32Array(N*6), geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const seeds=[]; for(let i=0;i<N;i++) seeds.push({x:w.x1+.4+rnd()*(w.x2-w.x1-.8),z:zr-1.2+rnd()*2.4,y:rnd()*11,v:7+rnd()*4});
+  const ls=new THREE.LineSegments(geo,rainLineMat); ls.frustumCulled=false; grp.add(ls); C.rain={pos,geo,seeds}; C.mats.push({dispose:()=>geo.dispose()});
+ }
+ for(const l of L.lamps){ const lg=new THREE.Group(); lg.position.set(l.x,0,l.z);
+  box(ironMat,(l.ax-l.x)/2,2.55,0,Math.abs(l.ax-l.x)+.05,.06,.06,lg); box(ironMat,0,2.35,0,.03,.4,.03,lg);
+  box(ironMat,0,2.16,0,.28,.05,.28,lg); box(lampGlass,0,1.98,0,.2,.28,.2,lg); box(ironMat,0,1.82,0,.24,.04,.24,lg);
+  glow(0xffc27a,1.6,.55,lg,0,1.98,0);
+  const pm=new THREE.MeshBasicMaterial({color:0xffc877,transparent:true,opacity:.1,depthWrite:false}); C.mats.push(pm);
+  const pool=new THREE.Mesh(circGeo,pm); pool.rotation.x=-Math.PI/2; pool.position.y=.015; pool.scale.set(2.6,2.6,1); lg.add(pool);
+  grp.add(lg); C.lamps.push({x:l.x,z:l.z}); }
+ for(const it of L.items){
+  if(it.t==='stub'&&!picked.has(it.id)){ const sg=new THREE.Group(); sg.position.set(it.x,0,it.z);
+   box(stoneMat,0,.03,0,.26,.06,.26,sg); box(waxMat,0,.16,0,.1,.2,.1,sg); const f=box(flameMat,0,.31,0,.06,.1,.06,sg); glow(0xffc27a,.7,.5,sg,0,.32,0);
+   grp.add(sg); C.items.push({t:'stub',id:it.id,x:it.x,z:it.z,grp:sg,flame:f}); }
+  else if(it.t==='match'&&!picked.has(it.id)){ const sg=new THREE.Group(); sg.position.set(it.x,0,it.z); sg.rotation.y=it.x;
+   box(matchMat,0,.05,0,.26,.09,.17,sg); box(strikeMat,0,.05,.09,.26,.07,.01,sg); glow(0xe8a0a0,.5,.25,sg,0,.12,0);
+   grp.add(sg); C.items.push({t:'match',id:it.id,x:it.x,z:it.z,grp:sg}); }
+  else if(it.t==='fallen'&&!picked.has(it.id)){ const m=box(pastelMat(it.c),it.x,.07,it.z,.5,.14,.36,grp); m.rotation.y=it.a; C.items.push({t:'book',id:it.id,x:it.x,z:it.z,grp:m}); }
+  else if(it.t==='note'&&!picked.has(it.id)){ const sg=new THREE.Group(); sg.position.set(it.x,0,it.z);
+   const m=box(noteMat,0,.02,0,.34,.02,.26,sg); m.rotation.y=.4; glow(0xf4ecd8,.9,.35,sg,0,.1,0);
+   grp.add(sg); C.items.push({t:'note',id:it.id,n:it.n,x:it.x,z:it.z,grp:sg}); }
+  else if(it.t==='paper'){ const sg=new THREE.Group(); sg.position.set(it.x,0,it.z); const r=mulberry32(hash(it.x*1000|0));
+   for(let i=0;i<9;i++){ const m=box(paperMat,(r()-.5)*1.3,.015+i*.004,(r()-.5)*1,.3,.01,.22,sg); m.rotation.y=r()*6; }
+   grp.add(sg); C.items.push({t:'paper',x:it.x,z:it.z,cd:0,grp:sg}); }
+  else if(it.t==='puddle'){ const pm=new THREE.Mesh(puddleGeo,puddleMat); pm.rotation.x=-Math.PI/2; pm.position.set(it.x,.012,it.z); pm.scale.set(it.r,it.r*.8,1); grp.add(pm);
+   const drop=box(dropMat,it.x,6,it.z,.04,.16,.04,grp);
+   const rm=ringMat.clone(); C.mats.push(rm); const ring=new THREE.Mesh(ringGeo,rm); ring.rotation.x=-Math.PI/2; ring.position.set(it.x,.03,it.z); grp.add(ring);
+   C.drips.push({drop,ring,off:it.off,sp:it.sp}); }
+ }
+ scene.add(grp); return C;
+}
+function dropChunk(C){ scene.remove(C.grp); C.ims.forEach(m=>m.dispose&&m.dispose()); C.mats.forEach(m=>m.dispose()); chunks.delete(C.key); }
+function updateChunks(){ const cg=Math.floor(boy.position.x/CW), ck=rowOf(boy.position.z);
+ const want=new Set();
+ for(let g=cg-2;g<=cg+2;g++) for(let k=ck-4;k<=ck+1;k++){ const key=g+','+k; want.add(key); if(!chunks.has(key)) chunks.set(key,buildChunk(g,k)); }
+ for(const C of [...chunks.values()]) if(!want.has(C.key)) dropChunk(C); }
+
+/* dust */
+const DN=40; const dustPos=new Float32Array(DN*3); const dustGeo=new THREE.BufferGeometry(); dustGeo.setAttribute('position',new THREE.BufferAttribute(dustPos,3));
+const dustSeed=[]; for(let i=0;i<DN;i++) dustSeed.push({a:Math.random()*6.28,r:.3+Math.random()*1.6,y:Math.random()*2,s:.1+Math.random()*.25,w:0});
+const dust=new THREE.Points(dustGeo,new THREE.PointsMaterial({color:0xffdca8,size:1,sizeAttenuation:false,transparent:true,opacity:.8})); dust.frustumCulled=false; scene.add(dust);
+
+/* floor helpers: fear ring, noise ripples, charge lane */
+const fearRing=new THREE.Mesh(new THREE.RingGeometry(.92,1,56),new THREE.MeshBasicMaterial({color:0xffc877,transparent:true,opacity:.35,depthWrite:false,side:THREE.DoubleSide}));
+fearRing.rotation.x=-Math.PI/2; fearRing.position.y=.025; scene.add(fearRing);
+const ripples=[]; for(let i=0;i<10;i++){ const m=new THREE.Mesh(new THREE.RingGeometry(.94,1,40),new THREE.MeshBasicMaterial({color:0xa9bcd8,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
+ m.rotation.x=-Math.PI/2; m.position.y=.03; m.visible=false; scene.add(m); ripples.push({m,t:9,R:1,dur:.8,o:.4}); }
+function ripple(x,z,R,color=0xa9bcd8,o=.4,dur=.8){ let r=ripples.find(r=>r.t>=r.dur)||ripples.reduce((a,b)=>a.t>b.t?a:b); r.t=0; r.R=R; r.o=o; r.dur=dur; r.m.material.color.setHex(color); r.m.position.x=x; r.m.position.z=z; r.m.visible=true; }
+const laneMat=new THREE.MeshBasicMaterial({color:0xff8fa3,transparent:true,opacity:.3,depthWrite:false,side:THREE.DoubleSide});
+const laneGrp=new THREE.Group(); scene.add(laneGrp);
+const lane=new THREE.Mesh(new THREE.PlaneGeometry(1,1),laneMat); lane.rotation.x=-Math.PI/2; lane.position.y=.035; lane.visible=false; laneGrp.add(lane);
+
+/* story book */
+const storyMat=new THREE.MeshBasicMaterial({color:0xffe7b0});
+const storyBook=new THREE.Mesh(BOX,storyMat); storyBook.scale.set(.15,.56,.42); scene.add(storyBook);
+const storyGlow=new THREE.Sprite(glowMat(0xffd89a,.7)); storyGlow.scale.set(1.8,1.8,1); scene.add(storyGlow);
+let story={active:false};
+function storySpot(i){ let [gx,k]=TARGETS[i]; const r=mulberry32(hash(i*131+7));
+ for(let t=0;t<12;t++,gx++){ const L=layout(gx,k); const s=L.segs.find(s=>s.x2-s.x1>2.4); if(!s) continue;
+  let x=s.x1+.8+r()*(s.x2-s.x1-1.6); const n=s.niche; if(n&&n.side>0&&Math.abs(n.x-x)<1.1) x=clamp(n.x+(x<n.x?-1.2:1.2),s.x1+.5,s.x2-.5);
+  return {x,gx,k,zr:L.zr,y:(1+(r()*2|0))*ROWH+.08+.28}; }
+ return {x:TARGETS[i][0]*CW+8,gx:TARGETS[i][0],k,zr:k*RS+3,y:1.2}; }
+function setStory(){ if(frag>=FR.length){story={active:false};storyBook.visible=storyGlow.visible=false;storyLight.intensity=0;return;}
+ const s=storySpot(frag); story={active:true,...s}; storyBook.position.set(s.x,s.y,s.zr+HALF-.14); storyBook.visible=storyGlow.visible=true;
+ storyGlow.position.set(s.x,s.y,s.zr+HALF+.05); storyLight.position.set(s.x,s.y+.3,s.zr+1.1); }
+
+/* ================= BOY ================= */
+const boy=new THREE.Group(); scene.add(boy);
+const skin=phong(0xe9c9ad),coat=phong(0x7e92b4),pants=phong(0x3a4260),hair=phong(0x4a3a36),shoe=phong(0x2a2830),scarf=phong(0xd4a3ae),eyeM=basic(0x1b1e2a),blush=phong(0xe8b0a8);
+const boyShadow=new THREE.Mesh(circGeo,shadowMat); boyShadow.rotation.x=-Math.PI/2; boyShadow.scale.set(.34,.3,1); boyShadow.position.y=.02; scene.add(boyShadow);
+const body=new THREE.Group(); boy.add(body);
+const mkLeg=x=>{const g=new THREE.Group();g.position.set(x,.42,0);box(pants,0,-.2,0,.14,.4,.16,g);box(shoe,0,-.39,.03,.15,.07,.22,g);body.add(g);return g;};
+const legL=mkLeg(-.1),legR=mkLeg(.1);
+box(coat,0,.64,0,.44,.46,.28,body); box(coat,0,.43,0,.48,.08,.3,body); box(phong(0x6f82a3),0,.64,.145,.06,.4,.01,body);
+box(scarf,0,.88,0,.46,.08,.3,body); box(scarf,-.12,.74,.15,.08,.2,.04,body);
+box(skin,0,1.07,0,.36,.34,.34,body); box(hair,0,1.24,-.01,.39,.1,.37,body); box(hair,0,1.1,-.16,.39,.26,.06,body); box(hair,-.12,1.2,.15,.14,.06,.06,body);
+box(eyeM,-.08,1.06,.172,.05,.06,.01,body); box(eyeM,.08,1.06,.172,.05,.06,.01,body); box(blush,-.12,1.0,.172,.05,.03,.01,body); box(blush,.12,1.0,.172,.05,.03,.01,body);
+const armL=new THREE.Group(); armL.position.set(-.26,.82,0); box(coat,0,-.15,0,.1,.32,.12,armL); body.add(armL);
+const armR=new THREE.Group(); armR.position.set(.26,.82,0); armR.rotation.x=-1.1; box(coat,0,-.15,0,.1,.32,.12,armR); body.add(armR);
+const hand=new THREE.Group(); hand.position.set(.26,.7,.3); body.add(hand);
+box(stoneMat,0,0,0,.16,.03,.16,hand); box(waxMat,0,.09,0,.07,.16,.07,hand); const flame=box(flameMat,0,.22,0,.06,.1,.06,hand);
+const flameGlow=glow(0xffb866,1.3,.55,hand,0,.23,0);
+const flameWorld=new THREE.Vector3();
+const heldBook=box(pastelMat(0xb3a7c9),-.3,.55,.08,.1,.3,.24,body); heldBook.visible=false;
+
+/* ================= MONSTER MODELS ================= */
+function mkMonster(type){
+ const g=new THREE.Group(), P={type}; const bodyG=new THREE.Group(); g.add(bodyG); P.body=bodyG;
+ const sh=new THREE.Mesh(circGeo,shadowMat); sh.rotation.x=-Math.PI/2; sh.position.y=.02; sh.scale.set(type==='asterion'?.8:.55,type==='asterion'?.6:.45,1); g.add(sh);
+ if(type==='lixo'){
+  const robe=phong(0x6a6378), hood=phong(0x847c93), bone=phong(0xb8b0c4);
+  box(robe,0,1.0,0,.62,1.7,.46,bodyG); box(robe,0,.12,0,.8,.24,.58,bodyG); box(robe,0,.6,-.2,.5,1.1,.2,bodyG);
+  for(const x of [-.25,.05,.28]) box(phong(0x5a5468),x,.08,.25,.14,.16,.1,bodyG);
+  box(hood,0,2.05,0,.58,.58,.54,bodyG); box(hood,0,2.4,-.05,.4,.16,.42,bodyG); box(hood,0,1.8,.2,.64,.1,.2,bodyG);
+  P.eyeMat=basic(0xdde6f5); box(P.eyeMat,0,2.06,.275,.26,.26,.02,bodyG); P.pupil=box(basic(0x151722),0,2.06,.29,.08,.11,.01,bodyG);
+  P.glow=glow(0xcfe0ff,.9,.5,bodyG,0,2.06,.35);
+  const arm=x=>{const a=new THREE.Group();a.position.set(x,1.75,0);box(bone,0,-.62,0,.1,1.25,.1,a);box(bone,0,-1.3,.02,.14,.14,.06,a);
+   for(const fx of [-.05,0,.05]) box(bone,fx,-1.46,.02,.025,.22,.025,a); bodyG.add(a); return a;};
+  P.aL=arm(-.38); P.aR=arm(.38); P.h=2.85;
+ } else if(type==='sirin'){
+  const fea=phong(0x7f8fa8), fea2=phong(0x5d6a86), breast=phong(0xc9b8c8), face=phong(0xe3cdbd), hr=phong(0x3d3444), gold=phong(0xd6cba0), claw=phong(0xc4a38a);
+  box(fea,0,1.05,0,.62,.58,.52,bodyG); box(breast,0,1.0,.24,.46,.44,.08,bodyG); box(fea2,0,.95,-.42,.4,.12,.44,bodyG); box(fea2,0,.9,-.66,.26,.08,.2,bodyG);
+  box(face,0,1.55,.06,.34,.36,.32,bodyG); box(hr,0,1.66,-.03,.4,.3,.38,bodyG); box(hr,0,1.4,-.14,.4,.4,.14,bodyG);
+  box(gold,0,1.84,.02,.46,.16,.06,bodyG); box(gold,0,1.94,.02,.3,.08,.06,bodyG); box(basic(0xe8d27a),0,1.88,.06,.06,.06,.01,bodyG);
+  P.eyeMat=basic(0x2a2536); box(P.eyeMat,-.08,1.55,.225,.09,.02,.01,bodyG); box(P.eyeMat,.08,1.55,.225,.09,.02,.01,bodyG);
+  const wing=s=>{const w=new THREE.Group();w.position.set(s*.3,1.2,-.02);box(fea2,s*.42,0,0,.84,.08,.62,w);box(fea,s*.3,.02,.12,.6,.06,.34,w);box(fea2,s*.8,-.02,-.12,.3,.05,.4,w);bodyG.add(w);return w;};
+  P.wL=wing(-1); P.wR=wing(1);
+  for(const x of [-.12,.12]){ box(claw,x,.55,.05,.05,.42,.05,bodyG); box(claw,x,.34,.1,.14,.04,.16,bodyG); }
+  P.glow=glow(0xb9c8ff,1.1,.25,bodyG,0,1.2,0); P.h=2.5;
+ } else {
+  const hide=phong(0x4d4349), dark=phong(0x3b3339), fur=phong(0x5f5158), horn=phong(0xdcd3c3);
+  const leg=x=>{const l=new THREE.Group();l.position.set(x,.95,0);box(dark,0,-.45,0,.32,.9,.36,l);box(phong(0x2a2428),0,-.9,.04,.36,.1,.4,l);g.add(l);return l;};
+  P.lL=leg(-.24); P.lR=leg(.24);
+  box(hide,0,1.4,0,1.0,1.0,.66,bodyG); box(fur,0,1.5,.3,.84,.72,.12,bodyG); box(hide,0,1.95,0,1.1,.26,.7,bodyG);
+  const arm=x=>{const a=new THREE.Group();a.position.set(x,1.85,0);box(hide,0,-.45,0,.26,.9,.3,a);box(dark,0,-.95,.02,.3,.18,.32,a);bodyG.add(a);return a;};
+  P.aL=arm(-.66); P.aR=arm(.66);
+  const head=new THREE.Group(); head.position.set(0,2.25,.12); bodyG.add(head); P.head=head;
+  box(fur,0,0,0,.56,.5,.6,head); box(phong(0x6b5c62),0,-.1,.36,.42,.3,.2,head); box(phong(0xc9b28a),0,-.2,.47,.2,.04,.02,head);
+  box(horn,-.4,.2,0,.36,.1,.1,head); box(horn,.4,.2,0,.36,.1,.1,head); box(horn,-.6,.34,0,.1,.26,.1,head); box(horn,.6,.34,0,.1,.26,.1,head);
+  P.eyeMat=basic(0xf2c2b8); box(P.eyeMat,-.15,.06,.305,.08,.06,.01,head); box(P.eyeMat,.15,.06,.305,.08,.06,.01,head);
+  P.glow=glow(0xff9aa8,.8,.3,head,0,.06,.4); P.h=3.0;
+ }
+ scene.add(g); P.grp=g; return P;
+}
+
+/* ================= STATE ================= */
+let mode='title', wax=100, lit=true, matches=3, carry=0, frag=0, lastT=performance.now(), T=0, walkPh=0, stepAcc=0, facing=Math.PI, curPrompt=null, mg=null;
+let hid=null, flashT=0, camShake=0, spawnT=20, beatT=0, caughtT=0, gust={phase:0,t:95};
+let seenPaper=false, seenBook=false, seenStun=false, lastPrompt='', cardQueue=null;
+const pl={moving:false,sneak:false};
+const seen=new Set(), notesRead=new Set(), monsters=[], proj=[], loose=[];
+const keys={};
+const SAVE='babel-candle-v3';
+function save(){ try{localStorage.setItem(SAVE,JSON.stringify({frag,matches,carry,seen:[...seen],notes:[...notesRead],picked:[...picked].slice(-500)}));}catch(e){} }
+function load(){ try{const s=JSON.parse(localStorage.getItem(SAVE)||'null'); if(s&&typeof s.frag==='number'){frag=clamp(s.frag|0,0,FR.length); matches=clamp(s.matches|0,0,9); carry=clamp(s.carry|0,0,3);
+ (s.picked||[]).forEach(p=>picked.add(p)); (s.seen||[]).forEach(p=>MT[p]&&seen.add(p)); (s.notes||[]).forEach(n=>NOTES[n]&&notesRead.add(n));}}catch(e){} }
+function placeBoy(){ if(frag>0){ const s=storySpot(frag-1); boy.position.set(s.x,0,s.zr+2.6); } else boy.position.set(8,0,0);
+ camera.position.set(boy.position.x,camH,boy.position.z+camDist); }
+function clearMonsters(){ for(const m of monsters){ scene.remove(m.P.grp); m.tag.remove(); } monsters.length=0; lane.visible=false; }
+function resetAll(){ for(const C of [...chunks.values()]) dropChunk(C); picked.clear(); seen.clear(); notesRead.clear(); frag=0; wax=100; lit=true; matches=3; carry=0; hid=null; clearMonsters(); spawnT=20; gust={phase:0,t:95};
+ loose.forEach(b=>scene.remove(b.m)); loose.length=0;
+ try{localStorage.removeItem(SAVE);}catch(e){} placeBoy(); setStory(); updateChunks(); }
+
+/* ================= UI helpers ================= */
+let toastTimer=0;
+function toast(msg,dur=3.2){ const t=$('#toast'); t.textContent=msg; t.style.opacity=1; toastTimer=dur; }
+function show(id,on){ $(id).hidden=!on; }
+const isTouch=()=>document.body.classList.contains('touch');
+let lastHud='';
+function plural(n,a,b,c){ n%=100; if(n>10&&n<20) return c; n%=10; return n===1?a:(n>=2&&n<=4?b:c); }
+function hud(alertTxt,hot){
+ $('#wax').style.height=wax+'%';
+ const c=$('#cndl'); c.classList.toggle('low',lit&&wax<18); c.classList.toggle('out',!lit||wax<=0);
+ const g=Math.floor(boy.position.x/CW), k=rowOf(boy.position.z);
+ const st=hid?(lit?'в нише · свет выдаёт':'в нише · темно и тихо'):(!lit?'свеча погашена':(pl.sneak&&pl.moving?'крадёшься':''));
+ const nl=!!nearLamp(boy.position.x,boy.position.z,1.8);
+ const s=g+'|'+k+'|'+frag+'|'+matches+'|'+carry+'|'+st+'|'+lit+'|'+(wax>=12)+'|'+nl;
+ if(s!==lastHud){ lastHud=s; $('#hexno').textContent=`№ ${4096+g} · ряд ${-k}`; $('#fragn').textContent=frag; $('#matches').textContent=matches; $('#carry').textContent=carry; $('#status').textContent=st;
+  $('#t-candle-t').textContent=lit?'задуть':(wax<=0?'нет воска':(matches>0||nl?'зажечь':'нет спичек')); $('#t-candle').classList.toggle('off',!lit);
+  $('#t-throw-t').textContent='бросить · '+carry; $('#t-throw').classList.toggle('dim',carry<=0); $('#t-flash').classList.toggle('dim',!lit||wax<12); }
+ const gd=$('#guide');
+ if(mode==='explore'&&story.active){ gd.style.opacity=1;
+  const dx=story.x-boy.position.x, dz=(story.zr+1.2)-boy.position.z; $('#arrow').style.transform=`rotate(${Math.atan2(dx,-dz)}rad)`;
+  const dg=story.gx-g, dk=story.k-k; let t;
+  if(dg===0&&dk===0) t='шёпот рядом, в этом ряду';
+  else { const parts=[]; if(dg) parts.push(Math.abs(dg)+' '+plural(Math.abs(dg),'зал','зала','залов')+(dg>0?' вправо':' влево')); if(dk) parts.push(Math.abs(dk)+' '+plural(Math.abs(dk),'ряд','ряда','рядов')+(dk<0?' вглубь':' к краю')); t=parts.join(', '); }
+  $('#guide-t').textContent=t; }
+ else gd.style.opacity=0;
+ const a=$('#alert'); a.textContent=alertTxt||''; a.style.opacity=alertTxt?1:0; a.classList.toggle('hot',!!hot);
+}
+
+/* ================= INPUT ================= */
+addEventListener('keydown',e=>{ const k=e.code; if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(k)&&mode!=='title') e.preventDefault();
+ keys[k]=true; if(e.repeat) return;
+ if(k==='KeyE'||k==='Space'||k==='Enter'){ if(mode==='minigame') return; if(mode==='title'&&k!=='Enter') return; onAction(); }
+ else if(k==='KeyF') toggleCandle();
+ else if(k==='KeyQ') doFlash();
+ else if(k==='KeyG') throwBook();
+ else if(k==='Escape') onEscape();
+ else if(k==='KeyJ') toggleJournal();
+ else if(k==='KeyM') AU.toggle(); });
+addEventListener('keyup',e=>{keys[e.code]=false;});
+addEventListener('blur',()=>{for(const k in keys) keys[k]=false; stickEnd();});
+function enableTouch(){ document.body.classList.add('touch'); }
+if(matchMedia('(pointer: coarse)').matches||navigator.maxTouchPoints>0) enableTouch();
+addEventListener('touchstart',enableTouch,{passive:true,once:true});
+const stick={id:null,ox:0,oy:0,x:0,y:0,mag:0}; const stickEl=$('#stick'), knob=$('#knob'), zone=$('#tzone');
+function stickHome(){ stickEl.style.left='92px'; stickEl.style.top=(innerHeight-110)+'px'; }
+stickHome(); addEventListener('resize',stickHome);
+zone.addEventListener('pointerdown',e=>{ if(stick.id!==null) return; e.preventDefault(); stick.id=e.pointerId; stick.ox=e.clientX; stick.oy=e.clientY;
+ try{zone.setPointerCapture(e.pointerId);}catch(_){} stickEl.style.left=e.clientX+'px'; stickEl.style.top=e.clientY+'px'; stickEl.classList.remove('idle'); stickMove(e); });
+zone.addEventListener('pointermove',e=>{ if(e.pointerId===stick.id) stickMove(e); });
+['pointerup','pointercancel','lostpointercapture'].forEach(ev=>zone.addEventListener(ev,e=>{ if(e.pointerId===stick.id) stickEnd(); }));
+function stickMove(e){ const dx=e.clientX-stick.ox, dy=e.clientY-stick.oy, R=56, d=Math.hypot(dx,dy), m=Math.min(1,d/R);
+ stick.x=d?dx/d*m:0; stick.y=d?dy/d*m:0; stick.mag=m; knob.style.transform=`translate(${stick.x*R}px,${stick.y*R}px)`;
+ const sn=m>.15&&m<.62; stickEl.classList.toggle('sneak',sn); $('#stick-lb').textContent=sn?'тихо':''; }
+function stickEnd(){ stick.id=null; stick.x=stick.y=stick.mag=0; knob.style.transform=''; stickEl.classList.add('idle'); stickEl.classList.remove('sneak'); $('#stick-lb').textContent=''; stickHome(); }
+function readInput(){
+ let dx=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0), dz=(keys.KeyS||keys.ArrowDown?1:0)-(keys.KeyW||keys.ArrowUp?1:0);
+ let mag=Math.hypot(dx,dz), sneak=!!(keys.ShiftLeft||keys.ShiftRight);
+ if(mag){ dx/=mag; dz/=mag; mag=1; }
+ if(stick.id!==null&&stick.mag>.15){ dx=stick.x/stick.mag; dz=stick.y/stick.mag; mag=stick.mag; sneak=stick.mag<.62; }
+ return {dx,dz,mag,sneak}; }
+const tap=(id,fn)=>$(id).addEventListener('click',e=>{e.preventDefault();fn();});
+tap('#t-act',()=>onAction()); tap('#t-candle',()=>toggleCandle()); tap('#t-flash',()=>doFlash()); tap('#t-throw',()=>throwBook());
+$('#prompt').addEventListener('click',()=>onAction());
+tap('#btn-journal',()=>toggleJournal()); tap('#btn-sound',()=>AU.toggle());
+$('#btn-start').addEventListener('click',start);
+$('#btn-reset').addEventListener('click',()=>{resetAll();start();});
+$('#rd-close').addEventListener('click',closeReader);
+$('#nt-close').addEventListener('click',closeNote);
+$('#rv-next').addEventListener('click',()=>onAction());
+$('#jr-close').addEventListener('click',()=>toggleJournal());
+$('#bk-close').addEventListener('click',()=>closeBook(true));
+$('#mc-ok').addEventListener('click',closeCard);
+$('#end-again').addEventListener('click',()=>{show('#ending',false);resetAll();mode='explore';show('#hud',true);toast('Ты снова открываешь синюю дверь.');});
+
+function start(){ AU.init(); if(AU.ctx&&AU.ctx.state==='suspended') AU.ctx.resume();
+ show('#title',false); show('#hud',true); mode='explore';
+ toast(frag>0?'Свеча снова горит. Стрелка вверху ведёт к шепчущей книге.':(isTouch()?'Где-то шепчет книга. Стрелка вверху покажет путь. Веди пальцем по левой половине экрана.':'Где-то шепчет книга. Стрелка вверху покажет путь.'),5); }
+function onAction(){
+ if(mode==='title') return start();
+ if(mode==='card') return closeCard();
+ if(mode==='note') return closeNote();
+ if(mode==='explore'){
+  if(hid) return exitNiche();
+  if(!curPrompt) return;
+  const p=curPrompt;
+  if(p.type==='niche') return enterNiche(p.n);
+  if(p.type==='note') return openNote(p.it);
+  if(p.type==='lamp'){ const was=lit; lit=true; wax=Math.max(wax,40); AU.strike(); toast(was?'Ты подлил воска у лампады.':'Свеча зажглась от лампады.',2); return; }
+  if(!lit){ toast('Слишком темно, чтобы читать. Зажги свечу.',2.2); return; }
+  if(threat()>0){ toast('Не до чтения: рядом кто-то ищет тебя.',2.2); AU.bad(); return; }
+  if(p.type==='story') openBook(); else openReader(p);
+  return; }
+ if(mode==='reader') return closeReader();
+ if(mode==='reveal') return revealNext();
+ if(mode==='journal') return toggleJournal();
+}
+function onEscape(){ if(mode==='reader') closeReader(); else if(mode==='journal') toggleJournal(); else if(mode==='minigame') closeBook(true); else if(mode==='card') closeCard(); else if(mode==='note') closeNote(); }
+
+/* ================= CANDLE ================= */
+function toggleCandle(){ if(mode!=='explore') return;
+ if(lit){ lit=false; AU.blow(); return; }
+ if(wax<=0){ toast('Воска не осталось. Найди огарок на полу или лампаду.',2.6); AU.bad(); return; }
+ if(nearLamp(boy.position.x,boy.position.z,1.8)){ lit=true; AU.strike(); return; }
+ if(matches<=0){ toast('Спичек больше нет. Зажги свечу от лампады.',2.6); AU.bad(); return; }
+ matches--; lit=true; AU.strike(); save(); }
+function doFlash(){ if(mode!=='explore') return;
+ if(!lit){ toast('Свеча погашена.',1.4); return; }
+ if(wax<12){ toast('Воска слишком мало для вспышки.',1.8); AU.bad(); return; }
+ wax-=10; flashT=1; AU.flash(); ripple(boy.position.x,boy.position.z,6.5,0xffc877,.6,.5); let n=0;
+ for(const m of monsters){ const d=Math.hypot(m.x-boy.position.x,m.z-boy.position.z);
+  if(d<6.5&&m.state!=='charge'){ m.state='flee'; m.t=2.8; m.courage=0; m.sawHide=false; n++; } }
+ if(n) toast('Огонь вспыхнул, и тьма отпрянула.',1.8); }
+
+/* ================= THROW ================= */
+const flyMat=pastelMat(0xb3a7c9);
+function throwBook(){ if(mode!=='explore') return;
+ if(hid){ toast('Из ниши не бросить.',1.4); return; }
+ if(carry<=0){ toast('Нечего бросить. Подбирай упавшие книги с пола.',2.2); return; }
+ carry--; save(); const p=boy.position, dx=Math.sin(facing), dz=Math.cos(facing);
+ let x=p.x,z=p.z,d=0; while(d<7){ const nx=x+dx*.25, nz=z+dz*.25; if(solidAt(nx,nz,.12)) break; x=nx; z=nz; d+=.25; }
+ const m=box(flyMat,p.x,1,p.z,.24,.1,.3,scene); proj.push({m,sx:p.x,sz:p.z,ex:x,ez:z,t:0,dur:.25+d*.05}); AU.whoosh(); }
+function noiseAt(x,z,R){
+ ripple(x,z,R,0xd6adb8,.55,1.1);
+ for(const m of monsters){ const d=Math.hypot(m.x-x,m.z-z); if(d>R) continue;
+  if(m.type==='sirin'&&m.state!=='flee'){ becomeAware(m); m.last=[x,z]; m.mem=6; m.lure=true; m.gapK=null; }
+  else if(m.type==='asterion'&&(m.state==='wander'||m.state==='hunt')&&m.cool<=0&&d<11&&d>1.5&&lineOfSight(m.x,m.z,x,z)){ becomeAware(m); startWindup(m,x,z); m.lure=true; }
+ } }
+
+/* ================= HIDING ================= */
+function enterNiche(n){ hid={n,px:boy.position.x,pz:boy.position.z};
+ boy.position.set(n.x,.08,n.zr+n.side*.22); facing=n.side>0?0:Math.PI; boy.rotation.y=facing; AU.flip();
+ for(const m of monsters){ const d=Math.hypot(m.x-n.x,m.z-boy.position.z);
+  const aware=m.state==='hunt'||m.state==='windup'||m.state==='charge';
+  const saw=aware&&senses(m,d,lineOfSight(m.x,m.z,boy.position.x,boy.position.z),false,true);
+  if(saw||(m.type==='sirin'&&d<4)) m.sawHide=true; }
+ if(n.stash&&!picked.has(n.id)){ picked.add(n.id); const r=hash(n.x*100|0)%3; AU.loot();
+  if(r===0){ matches=Math.min(9,matches+2); toast('Тайник деда! Две спички, завёрнутые в бумагу.',3); }
+  else if(r===1){ wax=Math.min(100,wax+40); toast('Тайник деда! Толстый огарок свечи.',3); }
+  else { carry=Math.min(3,carry+2); matches=Math.min(9,matches+1); toast('Тайник деда! Две лёгкие книжки и спичка.',3); }
+  const C=chunks.get(layout(Math.floor(n.x/CW),n.k).key); if(C){ dropChunk(C); updateChunks(); }
+  save(); return; }
+ toast(lit?'Ты в нише. Свет пробивается сквозь книги: задуй свечу.':'Ты в нише. Сиди тихо.',2.4); }
+function exitNiche(){ if(!hid) return; const n=hid.n; boy.position.set(n.x,0,n.zr+n.side*(HALF+.45)); hid=null; AU.flip(); for(const m of monsters) m.sawHide=false; }
+
+/* ================= MONSTERS ================= */
+function senses(m,d,los,asHidden,moving){
+ if(asHidden){ if(lit&&d<7&&(los||d<2.5)) return true; return m.sawHide&&d<4; }
+ const mv=moving??pl.moving, sn=pl.sneak;
+ if(d<1.3) return true;
+ if(m.type==='lixo') return (lit&&los&&d<13)||d<2.2;
+ if(m.type==='sirin') return (mv&&!sn&&d<9)||(mv&&sn&&d<2.6)||(lit&&los&&d<3.5);
+ return los&&(lit?d<11:d<4.5);
+}
+function allowedTypes(){ const t=['lixo']; if(frag>=2) t.push('sirin'); if(frag>=4) t.push('asterion'); return t; }
+function wantCount(){ return frag<2?1:frag<5?2:3; }
+function spawnMonster(force){
+ const p=boy.position, types=allowedTypes();
+ const free=types.filter(t=>!monsters.some(m=>m.type===t)); const pool=free.length?free:types; const type=force||pool[rnd()*pool.length|0];
+ for(let tries=0;tries<14;tries++){
+  const x=p.x+(rnd()<.5?-1:1)*(14+rnd()*8), a=Math.round(p.z/RS)+((rnd()*4|0)-2), z=a*RS+(rnd()-.5)*1.2;
+  if(solidAt(x,z,.45)||nearLamp(x,z,3)) continue;
+  if(lit&&lineOfSight(x,z,p.x,p.z)&&Math.hypot(x-p.x,z-p.z)<13) continue;
+  const P=mkMonster(type);
+  const tag=document.createElement('div'); tag.className='mtag'; tag.innerHTML=`<span class="row"><span class="ic">${MT[type].icon}</span><span class="nm"></span></span><i class="bar"><b></b></i>`; $('#tags').appendChild(tag);
+  const m={type,P,tag,x,z,rot:0,state:'wander',t:0,wt:null,idle:0,courage:0,mem:0,last:null,sawHide:false,cool:0,stuck:0,gapK:null,gapX:0,snd:rnd()*3,cdx:0,cdz:0,trav:0,ph:rnd()*6,brave:false,lure:false,tagT:'бродит'};
+  P.grp.position.set(x,0,z); monsters.push(m); return m; }
+}
+function removeMonster(i){ const m=monsters[i]; scene.remove(m.P.grp); m.tag.remove(); monsters.splice(i,1); }
+function moveM(m,tx,tz,sp,dt,ignoreLamp){
+ const dx=tx-m.x,dz=tz-m.z,d=Math.hypot(dx,dz); if(d<.05){ m.moving=false; return true; }
+ const s=Math.min(d,sp*dt), nx=m.x+dx/d*s, nz=m.z+dz/d*s, ox=m.x, oz=m.z;
+ const bad=(x,z)=>solidAt(x,z,.36)||(!ignoreLamp&&nearLamp(x,z,2.6)&&!nearLamp(m.x,m.z,2.6));
+ if(!bad(nx,nz)){m.x=nx;m.z=nz;} else if(!bad(nx,m.z)) m.x=nx; else if(!bad(m.x,nz)) m.z=nz;
+ const moved=Math.hypot(m.x-ox,m.z-oz); if(moved<s*.3) m.stuck+=dt; else m.stuck=Math.max(0,m.stuck-dt);
+ if(moved>1e-4) m.rot=Math.atan2(m.x-ox,m.z-oz); m.moving=moved>1e-4;
+ return d<.3;
+}
+function navTo(m,tx,tz,sp,dt){
+ const am=Math.round(m.z/RS), at=Math.round(tz/RS);
+ if(am===at){ m.gapK=null; return moveM(m,tx,tz,sp,dt); }
+ const dir=at>am?1:-1, k=dir>0?am:am-1;
+ if(m.gapK!==k){ m.gapK=k; m.gapX=nearestGap(k,m.x,tx); }
+ if(Math.abs(m.x-m.gapX)>.3) moveM(m,m.gapX,am*RS,sp,dt); else moveM(m,m.gapX,(am+dir)*RS,sp,dt);
+ return false;
+}
+function pickWander(m){ const p=boy.position;
+ const nearP=rnd()<.5; const tx=nearP?p.x+(rnd()-.5)*14:m.x+(rnd()-.5)*24;
+ const ta=(nearP?Math.round(p.z/RS):Math.round(m.z/RS))+((rnd()*3|0)-1);
+ m.wt=[tx,ta*RS+(rnd()-.5)*1.4]; m.gapK=null; }
+function becomeAware(m){ if(m.state==='wander'){ AU.notice(pan(m)); if(!seen.has(m.type)){ seen.add(m.type); save(); cardQueue=m.type; } } if(m.state!=='windup'&&m.state!=='charge'&&m.state!=='stun') m.state='hunt'; }
+function startWindup(m,tx,tz){ const dx=tx-m.x, dz=tz-m.z, d=Math.hypot(dx,dz)||1; m.state='windup'; m.t=1.05; m.cdx=dx/d; m.cdz=dz/d; m.rot=Math.atan2(dx,dz); AU.snort(pan(m)); }
+function pan(m){ return clamp((m.x-boy.position.x)/10,-1,1); }
+function caught(m){ if(mode!=='explore') return; mode='caught'; caughtT=0; AU.caught(); hid=null; toast(MT[m.type].catchT,3); }
+function repR(){ return 1.4+2.8*Math.sqrt(wax/100); }
+function updMonster(m,dt){
+ const p=boy.position, dx=p.x-m.x, dz=p.z-m.z, d=Math.hypot(dx,dz)||1e-3, cfg=MT[m.type];
+ const L=lineOfSight(m.x,m.z,p.x,p.z), sense=senses(m,d,L,!!hid);
+ const rep=lit&&wax>0?repR():0;
+ m.t-=dt; m.cool-=dt; m.alertTxt=null; m.hot=false; m.sense=sense;
+ m.snd-=dt; if(m.snd<=0&&d<16){ const v=1-d/16;
+  if(m.type==='lixo'){AU.whisper(pan(m),v);m.snd=2.5+rnd()*3;} else if(m.type==='sirin'){AU.song(pan(m),v);m.snd=3.5+rnd()*3;} else {AU.hoof(pan(m),v);m.snd=m.state==='charge'?.18:.55;} }
+ if(m.state==='stun'){ m.moving=false; if(m.t<=0){m.state='hunt';m.mem=2;} m.tagT='оглушён'; m.alertTxt=cfg.short+' оглушён — уходи!'; return; }
+ if(m.state==='flee'){ moveM(m,m.x-dx/d*5,m.z-dz/d*5,cfg.run,dt); if(m.t<=0){m.state='hunt';m.mem=1.5;} m.tagT='бежит'; m.alertTxt=cfg.short+' отпрянул от огня'; return; }
+ if(m.state==='windup'){ m.moving=false; m.tagT='целится'; m.alertTxt=cfg.short+' наклоняет рога — уйди с полосы!'; m.hot=true;
+  if(m.t<=0){ m.state='charge'; m.trav=0; } return; }
+ if(m.state==='charge'){ const s=9.5*dt, nx=m.x+m.cdx*s, nz=m.z+m.cdz*s; m.hot=true; m.tagT='рывок!'; m.alertTxt=cfg.short+' бросается!';
+  if(solidAt(nx,nz,.4)||nearLamp(nx,nz,2.2)){ m.state='stun'; m.t=3; m.cool=4; AU.thud(); camShake=.5; m.sawHide=false; m.lure=false;
+   if(!seenStun){ seenStun=true; toast('Астерион врезался и оглушён. Самое время уйти.',2.6); } return; }
+  m.x=nx; m.z=nz; m.trav+=s; m.moving=true; m.rot=Math.atan2(m.cdx,m.cdz);
+  if(!hid&&Math.hypot(p.x-m.x,p.z-m.z)<.85) return caught(m);
+  if(m.trav>15){ m.state='hunt'; m.cool=2.5; m.lure=false; } return; }
+ if(sense){ becomeAware(m); m.last=[p.x,p.z]; m.mem=5; m.lure=false; }
+ if(m.state==='wander'){
+  m.courage=Math.max(0,m.courage-dt*.12); m.brave=false; m.tagT='бродит';
+  if(m.idle>0){ m.idle-=dt; m.moving=false; return; }
+  if(!m.wt||m.stuck>1.5){ pickWander(m); m.stuck=0; }
+  if(navTo(m,m.wt[0],m.wt[1],cfg.walk,dt)){ m.wt=null; m.idle=.8+rnd()*1.6; }
+  return; }
+ m.mem-=dt;
+ if(hid&&(m.sawHide||(lit&&sense))&&d<1.3) return caught(m);
+ if(m.type==='asterion'&&sense&&L&&!hid&&d>2.2&&d<11&&m.cool<=0){ startWindup(m,p.x,p.z); return; }
+ if(rep&&sense&&d<rep+.3&&m.courage<1){
+  m.courage+=dt/cfg.brave; m.moving=false; m.rot=Math.atan2(dx,dz);
+  if(d<rep-.15) moveM(m,m.x-dx/d,m.z-dz/d,cfg.walk,dt);
+  else { const sx=-dz/d, sz=dx/d, w=Math.sin(T*.8+m.ph); moveM(m,m.x+sx*w,m.z+sz*w,cfg.walk*.35,dt); m.rot=Math.atan2(dx,dz); }
+  m.tagT='боится огня'; m.alertTxt=cfg.short+' у края света и смелеет'; m.hot=m.courage>.6;
+  if(m.courage>=1&&!m.brave){ m.brave=true; toast(cfg.short+' больше не боится огня! Задуй свечу и уходи.',2.6); }
+  return; }
+ const tgt=sense?[p.x,p.z]:m.last;
+ if(!tgt||m.mem<=0){ m.state='wander'; m.wt=null; m.sawHide=false; m.idle=1; m.lure=false; return; }
+ const arrived=navTo(m,tgt[0],tgt[1],cfg.run,dt);
+ if(!sense&&arrived){ m.mem=Math.min(m.mem,1.6); m.rot+=dt*2; }
+ if(m.stuck>1.2){ m.gapK=null; m.stuck=0; if(!sense) m.mem=0; }
+ if(!hid&&sense&&d<.8) return caught(m);
+ m.tagT=sense?(m.brave?'не боится!':(m.type==='sirin'?'слышит':'видит')):(m.lure?'идёт на шум':'ищет');
+ m.alertTxt=sense?(m.type==='sirin'?cfg.short+' слышит твои шаги':cfg.short+' видит тебя'):(m.lure?cfg.short+' идёт на шум':cfg.short+' ищет тебя'); m.hot=sense;
+}
+function animMonster(m,dt){
+ const P=m.P, g=P.grp; m.ph+=dt*(m.moving?(m.state==='charge'?14:6):1.5);
+ g.position.set(m.x,0,m.z);
+ let dr=m.rot-g.rotation.y; dr=Math.atan2(Math.sin(dr),Math.cos(dr)); g.rotation.y+=dr*Math.min(1,dt*8);
+ const hunting=m.state!=='wander';
+ if(m.type==='lixo'){ P.body.position.y=m.moving?Math.abs(Math.sin(m.ph))*.05:0; P.aL.rotation.x=Math.sin(m.ph)*.25; P.aR.rotation.x=-Math.sin(m.ph)*.25;
+  P.eyeMat.color.setHex(hunting?0xffb3c2:0xdde6f5); P.glow.material=glowMat(hunting?0xff9fb3:0xcfe0ff,.55); P.pupil.position.x=Math.sin(T*.7+m.ph)*.06; P.body.rotation.z=m.state==='stun'?Math.sin(T*9)*.1:0; }
+ else if(m.type==='sirin'){ P.body.position.y=.35+Math.sin(T*2+m.ph)*.12; const f=Math.sin(m.ph*(m.moving?2.2:1.2))*.55;
+  P.wL.rotation.z=f; P.wR.rotation.z=-f; P.eyeMat.color.setHex(hunting?0x8a3a52:0x2a2536); }
+ else { const sw=m.moving?Math.sin(m.ph):0; P.lL.rotation.x=sw*.5; P.lR.rotation.x=-sw*.5; P.aL.rotation.x=-sw*.4; P.aR.rotation.x=sw*.4;
+  const low=m.state==='windup'||m.state==='charge'; P.head.rotation.x+=((low?.7:0)-P.head.rotation.x)*Math.min(1,dt*8);
+  P.body.rotation.x+=((low?.3:0)-P.body.rotation.x)*Math.min(1,dt*8); P.body.rotation.z=m.state==='stun'?Math.sin(T*10)*.12:0;
+  P.eyeMat.color.setHex(hunting?0xff8f9f:0xf2c2b8); }
+}
+const _v=new THREE.Vector3();
+function placeTag(m){ const d=Math.hypot(m.x-boy.position.x,m.z-boy.position.z); const el=m.tag;
+ if(d>18||mode==='title'){ el.style.display='none'; return; }
+ _v.set(m.x,m.P.h+(m.type==='sirin'?.3:0),m.z).project(camera);
+ if(_v.z>1||Math.abs(_v.x)>1.1||Math.abs(_v.y)>1.1){ el.style.display='none'; return; }
+ el.style.display=''; el.style.left=((_v.x+1)/2*innerWidth)+'px'; el.style.top=((1-_v.y)/2*innerHeight)+'px';
+ const nm=MT[m.type].short+' · '+(m.tagT||''); if(el._t!==nm){ el._t=nm; el.querySelector('.nm').textContent=nm; }
+ el.classList.toggle('on',m.state!=='wander'); el.classList.toggle('brave',m.courage>=1);
+ el.querySelector('b').style.width=(Math.min(1,m.courage)*100)+'%'; }
+function threat(){ let best=0; for(const m of monsters){ if(m.state==='wander') continue; const d=Math.hypot(m.x-boy.position.x,m.z-boy.position.z); if(d<12) best=Math.max(best,1-d/12); } return best; }
+function updateMonsters(dt){
+ spawnT-=dt;
+ if(spawnT<=0){ spawnT=7+rnd()*7; if(monsters.length<wantCount()) spawnMonster(); }
+ let txt=null, hot=false, bestD=1e9, wm=null;
+ for(let i=monsters.length-1;i>=0;i--){ const m=monsters[i];
+  const d=Math.hypot(m.x-boy.position.x,m.z-boy.position.z);
+  if(d>36&&m.state==='wander'){ removeMonster(i); continue; }
+  updMonster(m,dt); if(mode!=='explore') return {txt:null};
+  animMonster(m,dt);
+  if(m.state==='windup'||m.state==='charge') wm=m;
+  if(m.alertTxt&&d<bestD){ bestD=d; txt=m.alertTxt; hot=m.hot; } }
+ if(wm){ const len=Math.max(.3,15-(wm.state==='charge'?wm.trav:0)); lane.visible=true; lane.scale.set(1,len,1); lane.position.z=0;
+  laneGrp.position.set(wm.x+wm.cdx*len/2,0,wm.z+wm.cdz*len/2); laneGrp.rotation.y=Math.atan2(wm.cdx,wm.cdz); laneMat.opacity=.22+.18*Math.sin(T*18); }
+ else lane.visible=false;
+ return {txt,hot};
+}
+
+/* ================= CARDS / NOTES ================= */
+function rulesHTML(c){ return c.rules.map(r=>`<li><span class="g ${r[1]}">${r[0]}</span><span><b>${r[2]}</b></span></li>`).join(''); }
+function fillRules(ul,c){ ul.innerHTML=rulesHTML(c); [...ul.children].forEach((li,i)=>li.lastChild.append(c.rules[i][3])); }
+function openCard(type){ const c=MT[type]; mode='card';
+ $('#mc-k').textContent='Новое существо в темноте'; $('#mc-name').textContent=c.name; $('#mc-myth').textContent=c.myth;
+ fillRules($('#mc-rules'),c); show('#mcard',true); AU.flip(); }
+function closeCard(){ show('#mcard',false); mode='explore'; }
+function openNote(it){ mode='note'; notesRead.add(it.n); picked.add(it.id); it.taken=true; it.grp.visible=false; save();
+ $('#nt-text').textContent='«'+NOTES[it.n]+'»'; show('#note',true); AU.flip(); }
+function closeNote(){ show('#note',false); mode='explore'; }
+
+/* ================= READER ================= */
+const ALPH='абвгдежзийклмнопрстуфхцчшщъыьэюя';
+const LORE=['дождь','свеча','дед','дверь','выход','сон','имя','тень','дом','окно','лихо','сирин'];
+function openReader(p){ const g=Math.floor(boy.position.x/CW); const vol=Math.floor((boy.position.x-p.s.x1)/.2)+1; const side=p.side>0?1:2;
+ const page=1+(hash(g*31+p.k*7+vol+side)%410); const r=mulberry32(hash(g*1000003+p.k*977+vol*131+page+side*17));
+ let lines=[]; for(let l=0;l<12;l++){ let s=''; for(let i=0;i<30;i++){ const q=r(); s+=q<.16?' ':q<.18?',':q<.19?'.':ALPH[r()*ALPH.length|0]; } lines.push(s); }
+ const bonus=r()<.2;
+ if(bonus){ const w=LORE[r()*LORE.length|0], li=r()*12|0, pos=r()*(30-w.length)|0; lines[li]=lines[li].slice(0,pos)+'<mark>'+w+'</mark>'+lines[li].slice(pos+w.length); }
+ $('#rd-head').textContent=`Шестигранник № ${4096+g} · ряд ${-p.k} · том ${vol}`;
+ $('#rd-text').innerHTML=lines.join('\n');
+ const key='v'+g+':'+p.k+':'+vol+':'+side; let extra='';
+ if(bonus&&!picked.has(key)&&r()<.5){ picked.add(key); matches=Math.min(9,matches+1); extra=' · между страниц лежала спичка'; AU.loot(); save(); }
+ $('#rd-page').textContent=`страница ${page} из 410`+extra;
+ AU.flip(); mode='reader'; show('#reader',true); }
+function closeReader(){ show('#reader',false); mode='explore'; AU.flip(); }
+
+/* ================= JOURNAL ================= */
+function toggleJournal(){ if(mode==='journal'){show('#journal',false);mode='explore';return;} if(mode!=='explore') return;
+ const ul=$('#jlist'); ul.innerHTML=''; if(frag===0){ ul.innerHTML='<li><span class="n">·</span><span>Пока пусто. Иди за стрелкой.</span></li>'; }
+ for(let i=0;i<frag;i++){ const li=document.createElement('li'); li.innerHTML=`<span class="n">${ROMAN[i]}</span><span></span>`; li.lastChild.textContent=FR[i].t; ul.appendChild(li); }
+ const bl=$('#blist'); bl.innerHTML='';
+ if(!seen.size) bl.innerHTML='<p style="margin:0;font-family:var(--book)">Пока ты никого не встретил. Но в темноте кто-то дышит.</p>';
+ for(const t of ['lixo','sirin','asterion']) if(seen.has(t)){ const c=MT[t]; const d=document.createElement('div'); d.className='bcard';
+  d.innerHTML='<h3 style="margin:0 0 8px"></h3><ul class="rules"></ul>'; d.querySelector('h3').textContent=c.name; fillRules(d.querySelector('ul'),c); bl.appendChild(d); }
+ const nl=$('#nlist'); nl.innerHTML='';
+ if(!notesRead.size) nl.innerHTML='<li><span class="n">·</span><span>Ищи светлые листки на полу.</span></li>';
+ [...notesRead].sort((a,b)=>a-b).forEach(n=>{ const li=document.createElement('li'); li.innerHTML='<span class="n">✎</span><span></span>'; li.lastChild.textContent=NOTES[n]; nl.appendChild(li); });
+ mode='journal'; show('#journal',true); }
+
+/* ================= MINIGAMES ================= */
+function lampize(lamp,signal){ lamp.ptr=lamp.ptr||{x:lamp.clientWidth/2,y:lamp.clientHeight/2};
+ const set=()=>{lamp.style.setProperty('--mx',lamp.ptr.x+'px');lamp.style.setProperty('--my',lamp.ptr.y+'px');};
+ const upd=e=>{const b=lamp.getBoundingClientRect();lamp.ptr={x:e.clientX-b.left,y:e.clientY-b.top};set();};
+ if(!lamp._lz){ lamp._lz=1; lamp.addEventListener('pointermove',upd,{signal}); lamp.addEventListener('pointerdown',upd,{signal}); } set(); }
+function lampRadius(){ return (isTouch()?95:70)+wax*.75; }
+function penalty(el){ wax=Math.max(0,wax-3); AU.bad(); if(el){el.classList.remove('shake');void el.offsetWidth;el.classList.add('shake');} }
+function listHTML(items){ return items.map(w=>`<li data-w="${w}">${w}</li>`).join(''); }
+function mgWordSearch(fr,area,list,signal,done){
+ const N=10, AB='АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЫЭЮЯ'; const words=fr.words; let grid;
+ const rng=mulberry32(hash(frag*991+3));
+ outer: for(let attempt=0;attempt<50;attempt++){ grid=Array(N*N).fill(null);
+  for(const w of words){ let ok=false; for(let k=0;k<200&&!ok;k++){ const [dx,dy]=[[1,0],[0,1],[1,1]][rng()*3|0];
+    const x=rng()*(N-(dx?w.length:1)+1)|0, y=rng()*(N-(dy?w.length:1)+1)|0; let fit=true;
+    for(let i=0;i<w.length;i++){const c=grid[(y+dy*i)*N+x+dx*i]; if(c&&c!==w[i]){fit=false;break;}}
+    if(fit){ for(let i=0;i<w.length;i++) grid[(y+dy*i)*N+x+dx*i]=w[i]; ok=true; } }
+   if(!ok) continue outer; } break; }
+ for(let i=0;i<N*N;i++) if(!grid[i]) grid[i]=AB[rng()*AB.length|0];
+ list.innerHTML=listHTML(words);
+ area.innerHTML=`<div class="ws-wrap"><div class="lamp"><div class="ws">${grid.map((c,i)=>`<div class="c" data-i="${i}">${c}</div>`).join('')}</div><div class="lit"></div></div></div>`;
+ const lamp=area.querySelector('.lamp'), ws=area.querySelector('.ws'), cells=[...ws.children]; lampize(lamp,signal);
+ const found=new Set(); let st=-1, sel=[];
+ const cellAt=(x,y)=>{const el=document.elementFromPoint(x,y);return el&&el.classList&&el.classList.contains('c')?+el.dataset.i:-1;};
+ const line=(a,b)=>{const ax=a%N,ay=a/N|0,bx=b%N,by=b/N|0,dx=bx-ax,dy=by-ay; if(!(dx===0||dy===0||Math.abs(dx)===Math.abs(dy))) return null;
+  const n=Math.max(Math.abs(dx),Math.abs(dy)),sx=Math.sign(dx),sy=Math.sign(dy),o=[]; for(let k=0;k<=n;k++) o.push((ay+sy*k)*N+ax+sx*k); return o;};
+ const paint=()=>{cells.forEach(c=>c.classList.remove('sel')); sel.forEach(i=>cells[i].classList.add('sel'));};
+ ws.addEventListener('pointerdown',e=>{const i=cellAt(e.clientX,e.clientY); if(i<0) return; st=i; sel=[i]; paint(); try{ws.setPointerCapture(e.pointerId);}catch(_){} },{signal});
+ ws.addEventListener('pointermove',e=>{ if(st<0) return; const i=cellAt(e.clientX,e.clientY); if(i<0) return; const l=line(st,i); if(l){sel=l;paint();} },{signal});
+ const fin=()=>{ if(st<0) return; st=-1; const s=sel.map(i=>grid[i]).join(''), rs=[...s].reverse().join('');
+  const w=words.find(w=>!found.has(w)&&(w===s||w===rs));
+  if(w){ found.add(w); sel.forEach(i=>cells[i].classList.add('f')); list.querySelector(`[data-w="${w}"]`).classList.add('ok'); AU.chime(); if(found.size===words.length) done(); }
+  else if(sel.length>1) penalty(ws);
+  sel=[]; paint(); };
+ ws.addEventListener('pointerup',fin,{signal}); ws.addEventListener('pointercancel',fin,{signal});
+ return {lamp};
+}
+function pseudo(r){ const V='аеиоуыяюэ',C='бвгджзклмнпрстфхцчшщ'; const n=2+(r()*7|0); let s='',v=r()<.4;
+ for(let i=0;i<n;i++){ s+=v?V[r()*V.length|0]:C[r()*C.length|0]; v=r()<.3?v:!v; } if(r()<.12) s+='ь'; return s; }
+function mgNoise(fr,area,list,signal,done){
+ const r=mulberry32(hash(frag*577+11)); const targets=fr.words.map(w=>w.toLowerCase());
+ const toks=[]; for(let i=0;i<64;i++) toks.push({w:pseudo(r)+(r()<.08?',':r()<.05?'.':''),t:null});
+ const slots=new Set(); targets.forEach(t=>{ let p; do{p=5+(r()*56|0);}while(slots.has(p)||slots.has(p-1)||slots.has(p+1)); slots.add(p); toks[p]={w:t,t}; });
+ list.innerHTML=targets.map((t,i)=>`<li data-i="${i}">${'▢'.repeat(t.length)}</li>`).join('');
+ area.innerHTML=`<div class="lamp noise"><p class="babel">${toks.map((k,i)=>`<span class="tk" data-i="${i}">${k.w}</span>`).join(' ')}</p><div class="lit"></div></div>`;
+ const lamp=area.querySelector('.lamp'); lampize(lamp,signal); let n=0;
+ lamp.addEventListener('click',e=>{ const el=e.target.closest('.tk'); if(!el||el.classList.contains('ok')) return; const k=toks[+el.dataset.i];
+  if(k.t){ el.classList.add('ok'); const li=list.querySelector(`[data-i="${targets.indexOf(k.t)}"]`); li.textContent=k.t.toUpperCase(); li.classList.add('ok'); AU.chime(); if(++n===targets.length) done(); }
+  else { el.classList.add('bad'); penalty(lamp); setTimeout(()=>el.classList.remove('bad'),700); } },{signal});
+ return {lamp};
+}
+function mgInk(fr,area,list,signal,done){
+ const r=mulberry32(hash(frag*313+5)); const words=fr.s.split(' ');
+ const decoys=['пыль','тень','полка','сон','зеркало'].filter(d=>!words.includes(d)).slice(0,2);
+ const all=[...words.map(w=>({w,real:true})),...decoys.map(w=>({w,real:false}))];
+ const n=all.length, C=3, R=Math.ceil(n/C)+1; const slots=[...Array(C*R).keys()].sort(()=>r()-.5).slice(0,n);
+ all.forEach((o,i)=>{ const s=slots[i]; o.px=((s%C)+.5)/C*100+(r()-.5)*8; o.py=((s/C|0)+.5)/R*100+(r()-.5)*6; o.heat=0; });
+ list.innerHTML='<li>Собери фразу из проступивших слов</li><li>Лишние слова не трогай</li>';
+ area.innerHTML=`<div class="ink-line">${words.map(w=>`<span class="blank" style="min-width:${w.length*.62}em">&nbsp;</span>`).join('')}</div>
+  <div class="lamp ink">${all.map((o,i)=>`<div class="inkw" data-i="${i}" style="left:${o.px}%;top:${o.py}%">${o.w}</div>`).join('')}<div class="lit"></div></div>`;
+ const lamp=area.querySelector('.lamp'); lampize(lamp,signal); const els=[...lamp.querySelectorAll('.inkw')], blanks=[...area.querySelectorAll('.blank')]; let k=0;
+ lamp.addEventListener('click',e=>{ const el=e.target.closest('.inkw'); if(!el||!el.classList.contains('ready')||el.classList.contains('used')) return; const o=all[+el.dataset.i];
+  if(o.w===words[k]){ el.classList.add('used'); blanks[k].textContent=o.w; blanks[k].classList.add('done'); k++; AU.chime(); if(k===words.length) done(); }
+  else penalty(area.querySelector('.ink-line')); },{signal});
+ return {lamp, tick(dt){ const w=lamp.clientWidth,h=lamp.clientHeight,rad=lampRadius()*.75;
+  all.forEach((o,i)=>{ if(o.heat>=1) return; const dx=o.px/100*w-lamp.ptr.x, dy=o.py/100*h-lamp.ptr.y;
+   if(dx*dx+dy*dy<rad*rad){ o.heat=Math.min(1,o.heat+dt*.9); els[i].style.opacity=o.heat; if(o.heat>.55) els[i].classList.add('ready'); } }); }};
+}
+function mgTorn(fr,area,list,signal,done){
+ const r=mulberry32(hash(frag*733+9)); const w=fr.s.split(' '); const pieces=[];
+ for(let i=0;i<w.length;){ const n=(w.length-i>2&&r()<.5)?2:1; pieces.push(w.slice(i,i+n).join(' ')); i+=n; }
+ const order=pieces.map((_,i)=>i); let guard=0; do{ order.sort(()=>r()-.5); }while(order.every((v,i)=>v===i)&&pieces.length>1&&guard++<20);
+ list.innerHTML='<li>Нажми на обрывок, потом на другой, и они поменяются местами</li><li>Сложи фразу сверху вниз</li>';
+ area.innerHTML=`<div class="lamp torn"><div class="strips"></div><div class="lit"></div></div>`; const lamp=area.querySelector('.lamp'), box_=lamp.querySelector('.strips');
+ box_.style.cssText='display:flex;flex-direction:column;gap:8px';
+ let sel=-1, solved=false;
+ const draw=()=>{ const ok=order.every((v,j)=>v===j); box_.innerHTML=order.map((p,i)=>`<button class="strip${i===sel?' sel':''}${ok?' ok':''}" data-i="${i}"></button>`).join('');
+  [...box_.children].forEach((b,i)=>b.textContent=pieces[order[i]]); };
+ draw(); lampize(lamp,signal);
+ box_.addEventListener('click',e=>{ if(solved) return; const b=e.target.closest('.strip'); if(!b) return; const i=+b.dataset.i;
+  if(sel<0){ sel=i; AU.flip(); } else if(sel===i){ sel=-1; } else { [order[sel],order[i]]=[order[i],order[sel]]; sel=-1; AU.flip(); }
+  draw(); if(order.every((v,j)=>v===j)){ solved=true; AU.chime(); setTimeout(done,300); } },{signal});
+ return {lamp};
+}
+const MG=[
+ {title:'Слова в темноте', hint:'Веди свечой по странице. Проведи пальцем от первой буквы слова до последней: слова идут вправо, вниз или по диагонали.', fn:mgWordSearch, cost:true},
+ {title:'Смысл среди шума', hint:'Эта страница почти целиком бессмысленна. Посвети и найди настоящие слова среди мусора букв. Нажми на слово, чтобы отметить его.', fn:mgNoise, cost:true},
+ {title:'Тайные чернила', hint:'Кто-то писал молоком. Держи свечу над страницей, пока слова не проступят от тепла, потом нажимай их по порядку фразы.', fn:mgInk, cost:true},
+ {title:'Порванная страница', hint:'Страницу разорвали на полоски. Верни полоскам правильный порядок, чтобы фраза сложилась.', fn:mgTorn, cost:false},
+];
+function openBook(){ const fr=FR[frag], type=MG[frag%MG.length]; const ac=new AbortController();
+ $('#bk-kicker').textContent=`Шепчущая книга · обрывок ${ROMAN[frag]} из 9`; $('#bk-title').textContent=type.title; $('#bk-hint').textContent=type.hint;
+ $('#bk-cost').textContent=type.cost?'Каждая ошибка стоит воска.':'Свеча тает, пока ты читаешь.';
+ mode='minigame'; show('#book',true); AU.flip(); mg={ac};
+ const area=$('#bk-area'), list=$('#bk-list');
+ requestAnimationFrame(()=>{ if(!mg||mg.ac!==ac) return; const inst=type.fn(fr,area,list,ac.signal,()=>{ AU.good(); setTimeout(()=>{ closeBook(false); openReveal(); },650); });
+  mg={ac,...inst}; }); }
+function closeBook(abandon){ if(mg){mg.ac.abort(); mg=null;} show('#book',false); $('#bk-area').innerHTML='';
+ if(abandon){ mode='explore'; AU.flip(); toast('Книга всё ещё шепчет с полки.',2.4); } }
+
+/* ================= REVEAL / ENDING ================= */
+let rv={txt:'',i:0,acc:0};
+function openReveal(){ mode='reveal'; rv={txt:FR[frag].t,i:0,acc:0}; $('#rv-head').textContent=`Обрывок ${ROMAN[frag]}`; $('#rv-text').textContent=''; show('#reveal',true); }
+function revealNext(){ if(rv.i<rv.txt.length){ rv.i=rv.txt.length; $('#rv-text').textContent=rv.txt; return; }
+ show('#reveal',false); frag++; matches=Math.min(9,matches+1); save();
+ if(frag>=FR.length){ setStory(); mode='ending'; show('#hud',false); clearMonsters(); $('#end-text').textContent=''; rv={txt:ENDING,i:0,acc:0}; show('#ending',true); return; }
+ setStory(); mode='explore';
+ toast(frag===2?'Где-то зашептала другая книга. И кто-то запел в темноте.':frag===4?'Где-то зашептала другая книга. Далеко застучали копыта.':'Где-то зашептала другая книга. В кармане нашлась спичка.',3.4); }
+
+/* ================= PLAYER ================= */
+const R=.28;
+const LONG={'взять книгу':'взять шепчущую книгу','записка':'прочитать записку','спрятаться':'залезть в нишу стеллажа','тайник!':'залезть в нишу: там тайник','зажечь':'зажечь свечу от лампады','подлить воска':'подлить воска у лампады','читать том':'открыть случайный том','вылезти':'вылезти из ниши'};
+function setPrompt(label,kind,g){ const key=label+'|'+kind; if(key===lastPrompt) return; lastPrompt=key;
+ const pr=$('#prompt'), ab=$('#t-act');
+ ab.className='tb'+(label?'':' dim')+(kind?' '+kind:''); $('#t-act-t').textContent=label||'—'; $('#t-act-g').textContent=label?g:'●';
+ if(!label){ pr.hidden=true; return; } pr.hidden=false; pr.className='prompt'+(kind?' '+kind:''); $('#prompt-t').textContent=LONG[label]||label; }
+function updateBoy(dt){
+ const inp=readInput(); pl.sneak=inp.sneak;
+ if(hid){ pl.moving=false; legL.rotation.x=legR.rotation.x=0; body.scale.y+=(.7-body.scale.y)*Math.min(1,dt*10); curPrompt=null; setPrompt('вылезти','hide','⇡'); return; }
+ body.scale.y+=((pl.sneak&&pl.moving?.88:1)-body.scale.y)*Math.min(1,dt*10);
+ const moving=inp.mag>0; const p=boy.position; pl.moving=moving;
+ if(moving){ const sp=pl.sneak?1.5:3.3;
+  const nx=p.x+inp.dx*sp*dt; if(!solidAt(nx,p.z,R)) p.x=nx;
+  const nz=p.z+inp.dz*sp*dt; if(!solidAt(p.x,nz,R)) p.z=nz;
+  facing=Math.atan2(inp.dx,inp.dz); walkPh+=dt*(pl.sneak?6:10); stepAcc+=dt;
+  if(stepAcc>(pl.sneak?.6:.34)){ stepAcc=0; if(!pl.sneak) AU.step();
+   if(monsters.some(m=>m.type==='sirin'&&Math.hypot(m.x-p.x,m.z-p.z)<22)) ripple(p.x,p.z,pl.sneak?2.6:9,0xa9bcd8,pl.sneak?.3:.22,.9); } }
+ let d=facing-boy.rotation.y; d=Math.atan2(Math.sin(d),Math.cos(d)); boy.rotation.y+=d*Math.min(1,dt*12);
+ const sw=moving?Math.sin(walkPh):0; legL.rotation.x=sw*.6; legR.rotation.x=-sw*.6; armL.rotation.x=-sw*.4;
+ body.position.y=moving?Math.abs(Math.cos(walkPh))*.035:Math.sin(T*2)*.008;
+ for(const C of chunks.values()) for(const it of C.items){
+  if(it.taken) continue; const dd=Math.hypot(it.x-p.x,it.z-p.z);
+  if(it.t==='paper'){ it.cd-=dt; if(dd<.9&&moving&&!pl.sneak&&it.cd<=0){ it.cd=1.2; AU.rustle(); noiseAt(it.x,it.z,12); if(!seenPaper){seenPaper=true; toast('Шуршащие страницы! Этот звук слышно далеко. Ступай по ним тихо.',3);} } continue; }
+  if(dd>.7) continue;
+  if(it.t==='stub'){ it.taken=true; it.grp.visible=false; picked.add(it.id); wax=Math.min(100,wax+35); toast('Огарок чужой свечи. Воска стало больше.',2); AU.chime(); save(); }
+  else if(it.t==='match'){ it.taken=true; it.grp.visible=false; picked.add(it.id); matches=Math.min(9,matches+2); toast('Коробок спичек. Две ещё сухие.',2); AU.chime(); save(); }
+  else if(it.t==='book'&&carry<3){ it.taken=true; it.grp.visible=false; picked.add(it.id); carry++; AU.flip(); save();
+   if(!seenBook){ seenBook=true; toast(isTouch()?'Книга в кармане. Кнопка «бросить» кинет её вперёд: шум отвлекает.':'Книга в кармане. G бросит её вперёд: шум отвлекает.',3.4); } }
+ }
+ for(let i=loose.length-1;i>=0;i--){ const b=loose[i]; if(carry<3&&Math.hypot(b.x-p.x,b.z-p.z)<.7){ scene.remove(b.m); loose.splice(i,1); carry++; AU.flip(); save(); } }
+ curPrompt=null; let label='', kind='', g='●';
+ const k=rowOf(p.z), zr=k*RS+3, side=p.z>zr?1:-1, faceD=Math.abs(p.z-zr)-HALF, L=layout(Math.floor(p.x/CW),k);
+ const lamp=nearLamp(p.x,p.z,1.8);
+ if(story.active&&story.k===k&&side>0&&Math.abs(p.x-story.x)<1&&faceD<1.1){ curPrompt={type:'story'}; label='взять книгу'; kind='story'; g='✦'; }
+ if(!curPrompt) for(const C of chunks.values()){ for(const it of C.items) if(it.t==='note'&&!it.taken&&Math.hypot(it.x-p.x,it.z-p.z)<.9){ curPrompt={type:'note',it}; label='записка'; g='✎'; break; } if(curPrompt) break; }
+ if(!curPrompt&&faceD<.9) for(const n of L.niches) if(n.side===side&&Math.abs(p.x-n.x)<.65){ curPrompt={type:'niche',n}; label=n.stash&&!picked.has(n.id)?'тайник!':'спрятаться'; kind='hide'; g='▣'; break; }
+ if(!curPrompt&&lamp&&(!lit||wax<40)&&wax>=0){ curPrompt={type:'lamp'}; label=lit?'подлить воска':'зажечь'; g='♨'; }
+ if(!curPrompt&&faceD<.7) for(const s of L.segs) if(p.x>s.x1+.2&&p.x<s.x2-.2){ curPrompt={type:'shelf',s,k,side}; label='читать том'; g='▤'; break; }
+ setPrompt(curPrompt?label:'',kind,g);
+}
+
+/* ================= GUST ================= */
+function updateGust(dt){
+ if(frag<1&&gust.phase===0) return;
+ gust.t-=dt; const gel=$('#gust');
+ if(gust.phase===0&&gust.t<=0){ gust.phase=1; gust.t=2.4; AU.wind(.05); gel.textContent='~ тянет сквозняком: замри или крадись ~'; gel.style.opacity=1; }
+ else if(gust.phase===1){ if(gust.t<=0){ gust.phase=2; gust.t=3.2; AU.wind(.16); gel.textContent='~ сквозняк ~'; } }
+ else if(gust.phase===2){
+  if(lit&&!hid&&pl.moving&&!pl.sneak){ lit=false; AU.blow(); toast('Сквозняк сорвал пламя. Нужна спичка или лампада.',2.6); }
+  if(gust.t<=0){ gust.phase=0; gust.t=70+rnd()*50; AU.wind(0); gel.style.opacity=0; } }
+}
+
+/* ================= LOOP ================= */
+function frame(now){ requestAnimationFrame(frame);
+ const dt=Math.min(.05,(now-lastT)/1000); lastT=now; T+=dt;
+ let alertInfo={txt:null};
+ if(mode==='explore'){ updateBoy(dt); alertInfo=updateMonsters(dt); updateGust(dt); }
+ else { setPrompt('','','●'); legL.rotation.x=legR.rotation.x=0; }
+ if(cardQueue&&mode==='explore'){ const t=cardQueue; cardQueue=null; openCard(t); }
+ updateChunks();
+ if(lit&&(mode==='explore'||mode==='reader'||mode==='minigame')) wax=Math.max(0,wax-dt*.5);
+ if(lit&&wax<=0){ lit=false; if(mode==='minigame') closeBook(false); if(mode==='reader') show('#reader',false); if(mode==='minigame'||mode==='reader') mode='explore';
+  toast('Свеча догорела. Ищи огарки на полу или лампаду.',3); }
+ if(mode==='caught'){ caughtT+=dt; if(caughtT>2.8){ clearMonsters(); spawnT=12; placeBoy(); hid=null; wax=Math.max(wax-20,35); lit=true; mode='explore'; toast('Ты очнулся у знакомых полок. Свеча стала короче.',3); } }
+ for(let i=proj.length-1;i>=0;i--){ const b=proj[i]; b.t+=dt; const k=Math.min(1,b.t/b.dur);
+  b.m.position.set(b.sx+(b.ex-b.sx)*k,.9+Math.sin(k*Math.PI)*1.2-.8*k,b.sz+(b.ez-b.sz)*k); b.m.rotation.x+=dt*14;
+  if(k>=1){ b.m.position.y=.06; b.m.rotation.set(0,rnd()*3,0); proj.splice(i,1); loose.push({m:b.m,x:b.ex,z:b.ez}); AU.land(clamp((b.ex-boy.position.x)/10,-1,1)); noiseAt(b.ex,b.ez,14); } }
+ hand.updateMatrixWorld(true); flame.getWorldPosition(flameWorld);
+ flashT=Math.max(0,flashT-dt*1.6);
+ const gustFl=gust.phase===2?(rnd()-.5)*.6:0;
+ const fl=.82+.1*Math.sin(T*23)+.08*Math.sin(T*41+1.3)+(wax<18?(rnd()-.5)*.35:0)+gustFl;
+ const on=lit?1:0;
+ candleLight.position.copy(flameWorld); candleLight.position.y+=.12;
+ candleLight.intensity=on*(2.3*fl*(.55+.45*Math.sqrt(wax/100))+flashT*5); candleLight.distance=3.5+8*Math.sqrt(wax/100)+flashT*6;
+ flame.visible=flameGlow.visible=on>0; flame.scale.y=.1*(.8+.4*fl); const gs=1.1+.25*fl+flashT*3; flameGlow.scale.set(gs,gs,1);
+ heldBook.visible=carry>0;
+ let maxC=0; for(const m of monsters) if(m.state==='hunt'&&m.sense) maxC=Math.max(maxC,Math.min(1,m.courage));
+ fearRing.visible=lit&&wax>0&&mode!=='title'&&!hid; const rr=repR()+flashT*2; fearRing.scale.set(rr,rr,1); fearRing.position.x=boy.position.x; fearRing.position.z=boy.position.z;
+ fearRing.material.color.setRGB(1,.78-.2*maxC,.47+.2*maxC); fearRing.material.opacity=.22+.2*maxC+(maxC>.6?.12*Math.sin(T*14):0);
+ boyShadow.position.x=boy.position.x; boyShadow.position.z=boy.position.z;
+ for(const r of ripples){ if(r.t>=r.dur){ r.m.visible=false; continue; } r.t+=dt; const k=Math.min(1,r.t/r.dur), s=r.R*(1-Math.pow(1-k,2)); r.m.scale.set(s,s,1); r.m.material.opacity=r.o*(1-k); }
+ postMat.uniforms.dark.value+=((mode==='caught'?.92:0)-postMat.uniforms.dark.value)*Math.min(1,dt*2.5);
+ const th=mode==='explore'?threat():0; postMat.uniforms.danger.value+=(th-postMat.uniforms.danger.value)*Math.min(1,dt*3);
+ postMat.uniforms.hid.value+=((hid?1:0)-postMat.uniforms.hid.value)*Math.min(1,dt*5);
+ beatT-=dt; if(th>.05&&beatT<=0){ AU.beat(.4+th*.6); beatT=1.15-th*.6; }
+ if(story.active){ const pu=.5+.5*Math.sin(T*2.4); storyMat.color.setRGB(1,.86+.08*pu,.62+.12*pu); storyLight.intensity=.8+.6*pu; storyGlow.scale.set(1.5+.5*pu,1.5+.5*pu,1); }
+ const p=boy.position, lampsNear=[];
+ for(const C of chunks.values()){
+  if(C.fade){ const tgt=C.zr>p.z+.05?.16:1; if(Math.abs(tgt-C.fade.op)>.005||C.fade.op<1){ C.fade.op+=(tgt-C.fade.op)*Math.min(1,dt*6); if(C.fade.op>.995) C.fade.op=1; C.fade.mats.forEach(m=>{m.opacity=C.fade.op;m.depthWrite=C.fade.op>.9;}); } }
+  for(const it of C.items) if(it.t==='stub'&&!it.taken) it.flame.scale.y=.1*(.8+.3*Math.sin(T*19+it.x));
+  for(const d of C.drips){ const ph=(T*d.sp+d.off)%1;
+   if(ph<.7){ d.drop.visible=true; d.drop.position.y=6.5*(1-ph/.7)+.05; d.ring.visible=false; }
+   else { d.drop.visible=false; d.ring.visible=true; const k=(ph-.7)/.3, s=.1+k*.5; d.ring.scale.set(s,s,s); d.ring.material.opacity=.6*(1-k); } }
+  if(C.rain){ const {pos,seeds,geo}=C.rain; for(let i=0;i<seeds.length;i++){ const r=seeds[i]; r.y-=r.v*dt; if(r.y<0) r.y=10+rnd()*2; const o=i*6; pos[o]=r.x;pos[o+1]=r.y;pos[o+2]=r.z;pos[o+3]=r.x-.03;pos[o+4]=r.y+.45;pos[o+5]=r.z; } geo.attributes.position.needsUpdate=true; }
+  for(const l of C.lamps){ l.d=Math.hypot(l.x-p.x,l.z-p.z); lampsNear.push(l); }
+ }
+ lampsNear.sort((a,b)=>a.d-b.d);
+ lampLights.forEach((L,i)=>{ const l=lampsNear[i]; if(l){ L.position.set(l.x,1.95,l.z+.2); L.intensity=1.5+.15*Math.sin(T*7+i); } else L.intensity=0; });
+ const windX=gust.phase===2?2.5:gust.phase===1?.6:0;
+ for(let i=0;i<DN;i++){ const d=dustSeed[i]; d.a+=dt*d.s; d.y+=dt*d.s*.4; d.w=windX?(d.w+windX*dt)%3:d.w*.95; if(d.y>2.4) d.y=0;
+  dustPos[i*3]=flameWorld.x+Math.cos(d.a)*d.r+d.w-(windX?1.5:0); dustPos[i*3+1]=flameWorld.y-.6+d.y; dustPos[i*3+2]=flameWorld.z+Math.sin(d.a)*d.r*.7; }
+ dustGeo.attributes.position.needsUpdate=true; dust.material.opacity=on*.8;
+ camShake=Math.max(0,camShake-dt);
+ const tx=p.x+(mode==='title'?Math.sin(T*.15)*2:0), tz=p.z+camDist;
+ const kk=1-Math.pow(.03,dt); camera.position.x+=(tx-camera.position.x)*kk; camera.position.y+=(camH-camera.position.y)*kk; camera.position.z+=(tz-camera.position.z)*kk;
+ camera.lookAt(camera.position.x,1.1,camera.position.z-camDist-2);
+ if(camShake>0){ camera.position.x+=(rnd()-.5)*camShake*.4; camera.position.y+=(rnd()-.5)*camShake*.4; }
+ camera.updateMatrixWorld();
+ for(const m of monsters) placeTag(m);
+ if(mode==='minigame'&&mg&&mg.lamp){ mg.lamp.style.setProperty('--r',lampRadius()+'px'); if(mg.tick) mg.tick(dt); }
+ if((mode==='reveal'||mode==='ending')&&rv.i<rv.txt.length){ rv.acc+=dt; while(rv.acc>.028&&rv.i<rv.txt.length){rv.acc-=.028;rv.i++;}
+  $(mode==='ending'?'#end-text':'#rv-text').textContent=rv.txt.slice(0,rv.i); }
+ if(toastTimer>0){ toastTimer-=dt; if(toastTimer<=0) $('#toast').style.opacity=0; }
+ if(mode!=='title') hud(alertInfo.txt,alertInfo.hot);
+ renderer.setRenderTarget(rt); renderer.render(scene,camera); renderer.setRenderTarget(null); renderer.render(postScene,postCam);
+}
+
+/* ================= BOOT ================= */
+load();
+if(frag>0){ $('#btn-start').textContent=frag>=FR.length?'Бродить дальше':`Продолжить · обрывков ${frag} из 9`; $('#btn-reset').hidden=false; }
+resize(); placeBoy(); setStory(); updateChunks();
+window.__babel={get boy(){return boy.position;},monsters,layout,solidAt,lineOfSight,get mode(){return mode;},spawnMonster,keys,get lit(){return lit;},get hid(){return hid;},
+ get carry(){return carry;},set carry(v){carry=v;},throwBook,noiseAt,get facing(){return facing;},set facing(v){facing=v;},chunks,get frag(){return frag;},set frag(v){frag=v;},openBook,gust,
+ get wax(){return wax;}};
+requestAnimationFrame(frame);
+})();
+</script>
